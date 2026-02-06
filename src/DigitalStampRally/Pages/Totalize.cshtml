@@ -1,0 +1,194 @@
+@page
+@using System.Text.Json
+@model DigitalStampRally.Pages.TotalizeModel
+@{
+    ViewData["Title"] = "集計";
+}
+
+<div class="container py-4">
+    <div class="mb-3">
+        <h1 class="h4 fw-bold mb-1">集計画面</h1>
+        <div class="text-muted small">
+            @Model.EventTitle
+            @if (Model.ValidFrom != default && Model.ValidTo != default)
+            {
+                <span>（有効期限：@Model.ValidFrom:yyyy/MM/dd HH:mm ～ @Model.ValidTo:yyyy/MM/dd HH:mm）</span>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+        return;
+    }
+
+    @* 認証前（パスワード入力） *@
+    @if (!Model.IsAuthorized)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 fw-bold mb-2">パスワード入力</h2>
+
+                @if (!string.IsNullOrWhiteSpace(Model.AuthErrorMessage))
+                {
+                    <div class="alert alert-warning" role="alert">@Model.AuthErrorMessage</div>
+                }
+
+                <form method="post" asp-page-handler="Auth">
+                    <input type="hidden" name="e" value="@Model.EventId" />
+                    <input type="hidden" name="t" value="@Model.Token" />
+
+                    <div class="mb-3">
+                        <label class="form-label">集計画面パスワード</label>
+                        <input class="form-control" type="password" name="password" required />
+                        <div class="form-text">※ CreateNew で出力されたPDFに記載されています。</div>
+                    </div>
+
+                    <button class="btn btn-primary" type="submit">集計を表示</button>
+                    <a class="btn btn-outline-secondary ms-2" href="/Index">ホームへ</a>
+                </form>
+            </div>
+        </div>
+
+        return;
+    }
+
+    @* 認証後（集計表示） *@
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">合計 ゴール人数</div>
+                    <div class="display-6 fw-bold">@Model.GoalTotal</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">合計 読み取り回数（押印相当）</div>
+                    <div class="display-6 fw-bold">@Model.TotalStampReads</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">掲示場所数</div>
+                    <div class="display-6 fw-bold">@Model.Spots.Count</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h6 fw-bold mb-3">掲示場所別 合計読み取り回数</h2>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>掲示場所</th>
+                            <th style="width:120px;">必須</th>
+                            <th class="text-end" style="width:160px;">合計</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var s in Model.Spots)
+                    {
+                        <tr>
+                            <td>@s.SpotName</td>
+                            <td>
+                                @if (s.IsRequired)
+                                {
+                                    <span class="badge text-bg-primary">必須</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">任意</span>
+                                }
+                            </td>
+                            <td class="text-end">@Model.TotalBySpot.GetValueOrDefault(s.SpotId, 0)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="small text-muted">
+                ※ “読み取り回数” は同一端末での重複読み取りを除外してカウント（IsDuplicate=falseのみ）
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h2 class="h6 fw-bold mb-3">毎時 ゴール人数</h2>
+
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>時刻</th>
+                            <th class="text-end" style="width:160px;">人数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var row in Model.GoalsByHour)
+                    {
+                        <tr>
+                            <td>@row.HourLabel</td>
+                            <td class="text-end">@row.Count</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @foreach (var s in Model.Spots)
+    {
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <h2 class="h6 fw-bold mb-0">毎時 読み取り回数：@s.SpotName</h2>
+                    @if (s.IsRequired)
+                    {
+                        <span class="badge text-bg-primary">必須</span>
+                    }
+                </div>
+
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>時刻</th>
+                                <th class="text-end" style="width:160px;">回数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @{
+                            var rows = Model.HourlyBySpot.TryGetValue(s.SpotId, out var list) ? list : new List<TotalizeModel.HourCountRow>();
+                        }
+                        @foreach (var r in rows)
+                        {
+                            <tr>
+                                <td>@r.HourLabel</td>
+                                <td class="text-end">@r.Count</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-3">
+        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+    </div>
+</div>

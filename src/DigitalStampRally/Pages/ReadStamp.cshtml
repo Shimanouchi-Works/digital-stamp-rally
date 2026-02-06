@@ -1,0 +1,291 @@
+@page
+@model DigitalStampRally.Pages.ReadStampModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "スタンプ読み取り";
+}
+
+<div class="container py-4">
+    <div class="mb-3">
+        <h1 class="h4 fw-bold mb-1">@Model.EventTitle</h1>
+        <div class="text-muted small">
+            有効期限：@Model.ValidFrom:yyyy/MM/dd HH:mm ～ @Model.ValidTo:yyyy/MM/dd HH:mm
+        </div>
+    </div>
+
+    @* エラー表示 *@
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+
+        <div class="mt-3">
+            <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+        </div>
+
+        return;
+    }
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <div class="text-muted small">今回読み取った掲示場所</div>
+                    <div class="h5 fw-bold mb-0">@Model.SpotName</div>
+                    <div class="mt-2">
+                        <span id="badge-duplicate" class="badge text-bg-warning d-none">読み取り済み</span>
+                        <span id="badge-new" class="badge text-bg-success d-none">新規</span>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">必須スタンプ</div>
+                    <div class="fw-bold">
+                        <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-3" />
+
+            <div class="small text-muted mb-2">これまでに読み取ったスタンプ一覧</div>
+            <ul class="list-group" id="stamp-list"></ul>
+
+            <div class="small text-muted mt-3">
+                注意：
+                <br />・通信が必要です
+                <br />・同じ端末（同じブラウザ）で集める必要があります
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <h2 class="h6 fw-bold mb-0">達成コード</h2>
+                <span id="badge-achieved" class="badge text-bg-primary d-none">条件達成</span>
+            </div>
+
+            <div class="mt-2">
+                <div class="text-muted small">ゴール条件を満たすと、ここに8桁コードが表示されます。</div>
+                <div class="display-6 fw-bold mt-2" id="achievement-code">----</div>
+                <div class="text-muted small" id="achievement-hint"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function(){
+    // --------------------
+    // サーバーから渡された値
+    // --------------------
+    const eventId = @Html.Raw(JsonSerializer.Serialize(Model.EventId));
+    const spotId  = @Html.Raw(JsonSerializer.Serialize(Model.SpotId));
+    const spotName = @Html.Raw(JsonSerializer.Serialize(Model.SpotName));
+    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds));
+    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {spotId:{name,isRequired}} ※今回追加
+
+    // --------------------
+    // localStorage keys
+    // --------------------
+    const KEY_VISITOR = "dsr:visitorId";
+    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: timestampIso, ... }
+
+    // --------------------
+    // helpers
+    // --------------------
+    function uuidv4() {
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c === "x" ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function getVisitorId(){
+        let v = localStorage.getItem(KEY_VISITOR);
+        if(!v){
+            v = uuidv4();
+            localStorage.setItem(KEY_VISITOR, v);
+        }
+        return v;
+    }
+
+    function loadStamps(){
+        const raw = localStorage.getItem(KEY_STAMPS);
+        if(!raw) return {};
+        try{
+            const obj = JSON.parse(raw);
+            return (obj && typeof obj === "object") ? obj : {};
+        }catch{
+            return {};
+        }
+    }
+
+    function saveStamps(stamps){
+        localStorage.setItem(KEY_STAMPS, JSON.stringify(stamps));
+    }
+
+    function isRequired(spotId){
+        return requiredSpotIds.includes(spotId);
+    }
+
+    function countRequiredCollected(stamps){
+        let c = 0;
+        for(const rid of requiredSpotIds){
+            if(stamps[rid]) c++;
+        }
+        return c;
+    }
+
+    function sortEntriesByTime(stamps){
+        return Object.entries(stamps)
+            .map(([sid, ts]) => ({ sid, ts }))
+            .sort((a,b) => (a.ts > b.ts ? -1 : a.ts < b.ts ? 1 : 0)); // 新しい順
+    }
+
+    function renderStampList(stamps){
+        const ul = document.getElementById("stamp-list");
+        ul.innerHTML = "";
+
+        const entries = sortEntriesByTime(stamps);
+        if(entries.length === 0){
+            const li = document.createElement("li");
+            li.className = "list-group-item text-muted";
+            li.textContent = "まだスタンプはありません。";
+            ul.appendChild(li);
+            return;
+        }
+
+        for(const e of entries){
+            const meta = spotMap[e.sid];
+            const name = meta ? meta.name : e.sid;
+
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            const left = document.createElement("div");
+            left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`;
+
+            const badge = document.createElement("span");
+            badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
+            badge.textContent = isRequired(e.sid) ? "必須" : "任意";
+
+            li.appendChild(left);
+            li.appendChild(badge);
+            ul.appendChild(li);
+        }
+    }
+
+    async function postJson(url, body){
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        return res;
+    }
+
+    function showBlocked(message){
+        // 既存の表示領域をブロック表示に差し替え
+        const container = document.querySelector(".container");
+        if(!container) return;
+
+        container.querySelectorAll(".card").forEach(c => c.classList.add("d-none"));
+
+        const alert = document.createElement("div");
+        alert.className = "alert alert-warning";
+        alert.role = "alert";
+        alert.innerHTML = `
+            <div class="fw-bold">ゴール済みのためスタンプを追加できません</div>
+            <div class="small mt-1">${message || ""}</div>
+        `;
+        container.insertBefore(alert, container.children[1] || null);
+    }
+
+    // --------------------
+    // main
+    // --------------------
+    const visitorId = getVisitorId();
+
+    // 1) ゴール済み判定（先にやる）
+    (async () => {
+        const statusRes = await postJson("?handler=GoalStatus", { eventId, visitorId });
+        if(statusRes.ok){
+            const st = await statusRes.json();
+            if(st.success && st.goaled){
+                // ゴール済みならブロック（ローカル追加もさせない）
+                showBlocked("すでにゴールしているため、追加の読み取りはできません。");
+                return;
+            }
+        }
+
+        // 2) ここから通常処理（localStorage更新）
+        const stamps = loadStamps();
+
+        const already = !!stamps[spotId];
+        if(already){
+            document.getElementById("badge-duplicate").classList.remove("d-none");
+        }else{
+            document.getElementById("badge-new").classList.remove("d-none");
+            stamps[spotId] = new Date().toISOString();
+            saveStamps(stamps);
+        }
+
+        // 必須達成数表示
+        const reqCollected = countRequiredCollected(stamps);
+        document.getElementById("required-count").textContent = String(reqCollected);
+
+        // 一覧表示
+        renderStampList(stamps);
+
+        // サーバーにログ（重複でもログは残す仕様）
+        postJson("?handler=Log", {
+            visitorId,
+            eventId,
+            spotId,
+            isDuplicate: already,
+            userAgent: navigator.userAgent
+        }).catch(()=>{});
+
+        // ゴール条件を満たしているなら達成コード取得（ReadStampでも確認できる仕様）
+        const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
+
+        const codeEl = document.getElementById("achievement-code");
+        const hintEl = document.getElementById("achievement-hint");
+        const badgeAch = document.getElementById("badge-achieved");
+
+        if(!achieved){
+            hintEl.textContent = "必須スタンプをすべて集めると表示されます。";
+            return;
+        }
+
+        const res = await postJson("?handler=Achievement", {
+            visitorId,
+            eventId,
+            collectedSpotIds: Object.keys(stamps)
+        });
+        if(!res.ok){
+            hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。";
+            return;
+        }
+        const data = await res.json();
+        if(!data.success){
+            hintEl.textContent = data.message || "まだ条件を満たしていません。";
+            return;
+        }
+        badgeAch.classList.remove("d-none");
+        codeEl.textContent = data.code;
+        hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
+    })().catch(() => {
+        // 通信がダメでも最低限は見せたいので、ここではブロックしない
+    });
+})();
+</script>
+}

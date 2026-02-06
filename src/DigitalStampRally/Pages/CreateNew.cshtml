@@ -1,0 +1,247 @@
+﻿@page
+@model DigitalStampRally.Pages.CreateNewModel
+@{
+    ViewData["Title"] = "新しいスタンプラリーを作成";
+}
+
+<div class="container py-4">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold">新しいスタンプラリーを作成</h1>
+        <p class="text-muted mb-0">イベント情報と掲示場所を入力し、掲示用PDF・ゴール用PDF・集計用PDFを出力します。</p>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+    }
+
+    <form method="post" enctype="multipart/form-data" asp-page-handler="Generate">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h5 fw-bold mb-3">イベント基本情報</h2>
+
+                <div class="mb-3">
+                    <label class="form-label">行事タイトル</label>
+                    <input class="form-control" asp-for="Input.EventTitle" maxlength="80" required />
+                    <span class="text-danger small" asp-validation-for="Input.EventTitle"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">イベント画像（任意）</label>
+                    <input class="form-control" type="file" asp-for="Input.EventImageFile" accept="image/*" />
+                    <div class="form-text">PDFに掲載されます（初期リリース想定：最大 2MB）。</div>
+                    <span class="text-danger small" asp-validation-for="Input.EventImageFile"></span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label">QRコード有効期間（開始）</label>
+                        <input class="form-control" asp-for="Input.ValidFrom" type="datetime-local" required />
+                        <span class="text-danger small" asp-validation-for="Input.ValidFrom"></span>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label">QRコード有効期間（終了）</label>
+                        <input class="form-control" asp-for="Input.ValidTo" type="datetime-local" required />
+                        <span class="text-danger small" asp-validation-for="Input.ValidTo"></span>
+                    </div>
+                </div>
+
+                <div class="mt-3 small text-muted">
+                    ゴール達成条件：
+                    <br />
+                    ・掲示場所のチェックが入っているものが <b>必須スタンプ</b> です（必須以外の景品差などは運営側で調整）。
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h2 class="h5 fw-bold mb-0">掲示場所</h2>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddSpot">
+                        ＋ 掲示場所を追加
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="spotTable">
+                        <thead>
+                            <tr>
+                                <th style="width:140px;">
+                                    <div class="form-check d-flex align-items-center gap-1">
+                                        <input class="form-check-input" type="checkbox" id="chkRequiredAll" />
+                                        <label class="form-check-label" for="chkRequiredAll">
+                                            必須
+                                        </label>
+                                    </div>
+                                </th>
+                                <th>掲示場所名</th>
+                                <th style="width:90px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="spotTbody">
+                        @for (int i = 0; i < Model.Input.Spots.Count; i++)
+                        {
+                            <tr class="spot-row">
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="Input.Spots[@i].IsRequired"
+                                               value="true"
+                                               @(Model.Input.Spots[i].IsRequired ? "checked" : "") />
+                                        <input type="hidden" name="Input.Spots[@i].IsRequired" value="false" />
+                                        <label class="form-check-label">必須</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input class="form-control"
+                                           name="Input.Spots[@i].SpotName"
+                                           value="@Model.Input.Spots[i].SpotName"
+                                           maxlength="60"
+                                           required />
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm btnRemoveSpot">削除</button>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="form-text">
+                    ※ 最低1件必要です。空欄や重複名はエラーになります。
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">
+                作成する（PDF + JSONをZIPで出力）
+            </button>
+            <a class="btn btn-outline-secondary" href="/Index">戻る</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        (function () {
+            const tbody = document.getElementById('spotTbody');
+            const btnAdd = document.getElementById('btnAddSpot');
+            const chkAll = document.getElementById('chkRequiredAll'); // ヘッダの一括チェック
+
+            // 行内の「必須」チェック一覧
+            function getRowChecks() {
+                return tbody.querySelectorAll('input.form-check-input[type="checkbox"]');
+            }
+
+            // 行追加/削除後も含め、Input.Spots[i] の i を再採番
+            function reindex() {
+                const rows = tbody.querySelectorAll('tr.spot-row');
+                rows.forEach((row, i) => {
+                    const chk = row.querySelector('input.form-check-input[type="checkbox"]');
+                    const hid = row.querySelector('input[type="hidden"]');
+                    const spot = row.querySelector('input.form-control');
+
+                    // チェックボックスは true を送る
+                    chk.name = `Input.Spots[${i}].IsRequired`;
+
+                    // false を送る hidden（チェックされてない時に必要）
+                    hid.name = `Input.Spots[${i}].IsRequired`;
+
+                    // 場所名
+                    spot.name = `Input.Spots[${i}].SpotName`;
+                });
+
+                syncHeaderCheckbox();
+            }
+
+            // ヘッダチェックの状態を、行の状態に合わせて同期
+            // ルール：全行がONの時だけヘッダON、それ以外はOFF（indeterminateは使わない）
+            function syncHeaderCheckbox() {
+                const checks = getRowChecks();
+                if (!chkAll) return;
+
+                if (checks.length === 0) {
+                    chkAll.checked = false;
+                    return;
+                }
+                chkAll.checked = Array.from(checks).every(c => c.checked);
+            }
+
+            // 行を1つ追加
+            function addRow(defaultName = "") {
+                const tr = document.createElement('tr');
+                tr.className = 'spot-row';
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="true" />
+                            <input type="hidden" value="false" />
+                            <label class="form-check-label">必須</label>
+                        </div>
+                    </td>
+                    <td>
+                        <input class="form-control" maxlength="60" required />
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm btnRemoveSpot">削除</button>
+                    </td>
+                `;
+
+                tr.querySelector('input.form-control').value = defaultName;
+                tbody.appendChild(tr);
+
+                reindex();
+            }
+
+            // --- イベント: ヘッダチェック → 全行ON/OFF ---
+            if (chkAll) {
+                chkAll.addEventListener('change', () => {
+                    const isOn = chkAll.checked;
+                    getRowChecks().forEach(c => c.checked = isOn);
+                    // ここでsyncHeaderCheckbox()は不要（chkAll自身がすでにその状態）
+                });
+            }
+
+            // --- イベント: 行の削除ボタン ---
+            tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btnRemoveSpot');
+                if (!btn) return;
+
+                const rows = tbody.querySelectorAll('tr.spot-row');
+                if (rows.length <= 1) {
+                    alert('掲示場所は最低1件必要です。');
+                    return;
+                }
+
+                btn.closest('tr').remove();
+                reindex();
+            });
+
+            // --- イベント: 行の必須チェックが変わったらヘッダ同期 ---
+            tbody.addEventListener('change', (e) => {
+                if (e.target && e.target.matches('input.form-check-input[type="checkbox"]')) {
+                    syncHeaderCheckbox();
+                }
+            });
+
+            // --- イベント: 追加ボタン ---
+            if (btnAdd) {
+                btnAdd.addEventListener('click', () => addRow(""));
+            }
+
+            // 初期状態の保険：0件なら1行作る
+            if (tbody.querySelectorAll('tr.spot-row').length === 0) {
+                addRow("");
+            } else {
+                reindex();
+            }
+        })();
+    </script>
+}

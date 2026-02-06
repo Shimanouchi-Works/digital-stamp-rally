@@ -1,0 +1,247 @@
+@page
+@using System.Text.Json
+@model DigitalStampRally.Pages.SetGoalModel
+@{
+    ViewData["Title"] = "ゴール確認";
+}
+
+<div class="container py-4">
+    <div class="mb-3">
+        <h1 class="h4 fw-bold mb-1">@Model.EventTitle</h1>
+        <div class="text-muted small">
+            有効期限：@Model.ValidFrom:yyyy/MM/dd HH:mm ～ @Model.ValidTo:yyyy/MM/dd HH:mm
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+        return;
+    }
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <div class="text-muted small">ゴール確認</div>
+                    <div class="h5 fw-bold mb-0">この端末の収集状況を確認してゴールします</div>
+                </div>
+                <span id="badge-goaled" class="badge text-bg-success d-none">ゴール済み</span>
+            </div>
+
+            <hr class="my-3" />
+
+            <div class="mb-2 small text-muted">収集したスタンプ（この端末）</div>
+            <ul class="list-group" id="stamp-list"></ul>
+
+            <div class="mt-3">
+                <div class="small text-muted">必須スタンプ</div>
+                <div class="fw-bold">
+                    <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
+                </div>
+                <div id="required-hint" class="small text-muted mt-1"></div>
+            </div>
+
+            <hr class="my-3" />
+
+            <button id="btn-goal" class="btn btn-primary" type="button">
+                ゴールする
+            </button>
+            <div id="goal-message" class="small text-muted mt-2"></div>
+
+            <div class="small text-muted mt-3">
+                注意：
+                <br />・ゴールすると以後スタンプ読み取りはできません
+                <br />・同じ端末（同じブラウザ）で集める必要があります
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h6 fw-bold mb-2">達成コード</h2>
+            <div class="display-6 fw-bold" id="achievement-code">----</div>
+            <div class="small text-muted" id="achievement-hint">ゴール後に表示されます。</div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function(){
+    // ----- server values -----
+    const eventId = @Html.Raw(JsonSerializer.Serialize(Model.EventId));
+    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {spotId:{name,isRequired}}
+    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds));
+
+    // ----- localStorage -----
+    const KEY_VISITOR = "dsr:visitorId";
+    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: timestampIso, ... }
+
+    function uuidv4() {
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c === "x" ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function getVisitorId(){
+        let v = localStorage.getItem(KEY_VISITOR);
+        if(!v){
+            v = uuidv4();
+            localStorage.setItem(KEY_VISITOR, v);
+        }
+        return v;
+    }
+
+    function loadStamps(){
+        const raw = localStorage.getItem(KEY_STAMPS);
+        if(!raw) return {};
+        try{
+            const obj = JSON.parse(raw);
+            return (obj && typeof obj === "object") ? obj : {};
+        }catch{
+            return {};
+        }
+    }
+
+    function isRequired(spotId){
+        return requiredSpotIds.includes(spotId);
+    }
+
+    function countRequiredCollected(stamps){
+        let c = 0;
+        for(const rid of requiredSpotIds){
+            if(stamps[rid]) c++;
+        }
+        return c;
+    }
+
+    function sortEntriesByTime(stamps){
+        return Object.entries(stamps)
+            .map(([sid, ts]) => ({ sid, ts }))
+            .sort((a,b) => (a.ts > b.ts ? -1 : a.ts < b.ts ? 1 : 0));
+    }
+
+    function renderStampList(stamps){
+        const ul = document.getElementById("stamp-list");
+        ul.innerHTML = "";
+
+        const entries = sortEntriesByTime(stamps);
+        if(entries.length === 0){
+            const li = document.createElement("li");
+            li.className = "list-group-item text-muted";
+            li.textContent = "まだスタンプはありません。";
+            ul.appendChild(li);
+            return;
+        }
+
+        for(const e of entries){
+            const meta = spotMap[e.sid];
+            const name = meta ? meta.name : e.sid;
+
+            const li = document.createElement("li");
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            const left = document.createElement("div");
+            left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`;
+
+            const badge = document.createElement("span");
+            badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
+            badge.textContent = isRequired(e.sid) ? "必須" : "任意";
+
+            li.appendChild(left);
+            li.appendChild(badge);
+            ul.appendChild(li);
+        }
+    }
+
+    async function postJson(url, body){
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        return res;
+    }
+
+    // ----- main -----
+    const visitorId = getVisitorId();
+    const stamps = loadStamps();
+
+    renderStampList(stamps);
+
+    const reqCollected = countRequiredCollected(stamps);
+    document.getElementById("required-count").textContent = String(reqCollected);
+
+    const hint = document.getElementById("required-hint");
+    if(requiredSpotIds.length === 0){
+        hint.textContent = "必須スタンプの指定はありません。";
+    }else if(reqCollected < requiredSpotIds.length){
+        hint.textContent = "必須スタンプが不足しています。";
+    }else{
+        hint.textContent = "必須スタンプを満たしています。";
+    }
+
+    const btn = document.getElementById("btn-goal");
+    const msg = document.getElementById("goal-message");
+    const badgeGoaled = document.getElementById("badge-goaled");
+    const codeEl = document.getElementById("achievement-code");
+    const codeHint = document.getElementById("achievement-hint");
+
+    // まず「ゴール済みか？」をサーバーに確認（端末が同じなら visitorId で判定）
+    (async () => {
+        const res = await postJson("?handler=Status", { eventId, visitorId });
+        if(!res.ok) return;
+        const data = await res.json();
+        if(data.success && data.goaled){
+            badgeGoaled.classList.remove("d-none");
+            btn.disabled = true;
+            msg.textContent = "この端末はすでにゴール済みです。";
+            if(data.code){
+                codeEl.textContent = data.code;
+                codeHint.textContent = "主催者の集計画面で照会できます。";
+            }
+        }
+    })();
+
+    btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        msg.textContent = "ゴール処理中…";
+
+        const res = await postJson("?handler=Goal", {
+            eventId,
+            visitorId,
+            collectedSpotIds: Object.keys(stamps)
+        });
+
+        if(!res.ok){
+            btn.disabled = false;
+            msg.textContent = "ゴール処理に失敗しました。通信環境をご確認ください。";
+            return;
+        }
+
+        const data = await res.json();
+        if(!data.success){
+            btn.disabled = false;
+            msg.textContent = data.message || "ゴールできませんでした。";
+            return;
+        }
+
+        badgeGoaled.classList.remove("d-none");
+        msg.textContent = "ゴールしました。以後スタンプ読み取りはできません。";
+
+        if(data.code){
+            codeEl.textContent = data.code;
+            codeHint.textContent = "主催者の集計画面で照会できます。";
+        }
+    });
+})();
+</script>
+}
