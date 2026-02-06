@@ -82,24 +82,16 @@
 @section Scripts {
 <script>
 (function(){
-    // --------------------
-    // サーバーから渡された値
-    // --------------------
     const eventId = @Html.Raw(JsonSerializer.Serialize(Model.EventId));
     const spotId  = @Html.Raw(JsonSerializer.Serialize(Model.SpotId));
+    const token   = @Html.Raw(JsonSerializer.Serialize(Model.Token));
     const spotName = @Html.Raw(JsonSerializer.Serialize(Model.SpotName));
-    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds));
-    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {spotId:{name,isRequired}} ※今回追加
+    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds)); // number[]
+    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // { "123": {name,isRequired}, ... } ※キーは文字列化される
 
-    // --------------------
-    // localStorage keys
-    // --------------------
     const KEY_VISITOR = "dsr:visitorId";
-    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: timestampIso, ... }
+    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: iso, ... } ※spotIdはキーなので文字列になる
 
-    // --------------------
-    // helpers
-    // --------------------
     function uuidv4() {
         if (crypto && crypto.randomUUID) return crypto.randomUUID();
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
@@ -133,14 +125,15 @@
         localStorage.setItem(KEY_STAMPS, JSON.stringify(stamps));
     }
 
-    function isRequired(spotId){
-        return requiredSpotIds.includes(spotId);
+    function isRequired(id){
+        // requiredSpotIds は number[]、stampsキーは string になるので Numberで揃える
+        return requiredSpotIds.includes(Number(id));
     }
 
     function countRequiredCollected(stamps){
         let c = 0;
         for(const rid of requiredSpotIds){
-            if(stamps[rid]) c++;
+            if(stamps[String(rid)]) c++;
         }
         return c;
     }
@@ -148,7 +141,7 @@
     function sortEntriesByTime(stamps){
         return Object.entries(stamps)
             .map(([sid, ts]) => ({ sid, ts }))
-            .sort((a,b) => (a.ts > b.ts ? -1 : a.ts < b.ts ? 1 : 0)); // 新しい順
+            .sort((a,b) => (a.ts > b.ts ? -1 : a.ts < b.ts ? 1 : 0));
     }
 
     function renderStampList(stamps){
@@ -165,11 +158,12 @@
         }
 
         for(const e of entries){
-            const meta = spotMap[e.sid];
+            const meta = spotMap[e.sid]; // JSON上はキーが文字列
             const name = meta ? meta.name : e.sid;
 
             const li = document.createElement("li");
             li.className = "list-group-item d-flex justify-content-between align-items-center";
+
             const left = document.createElement("div");
             left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`;
 
@@ -193,7 +187,6 @@
     }
 
     function showBlocked(message){
-        // 既存の表示領域をブロック表示に差し替え
         const container = document.querySelector(".container");
         if(!container) return;
 
@@ -209,32 +202,48 @@
         container.insertBefore(alert, container.children[1] || null);
     }
 
-    // --------------------
-    // main
-    // --------------------
     const visitorId = getVisitorId();
 
-    // 1) ゴール済み判定（先にやる）
     (async () => {
+        // 1) ゴール済み判定（先に）
         const statusRes = await postJson("?handler=GoalStatus", { eventId, visitorId });
         if(statusRes.ok){
             const st = await statusRes.json();
             if(st.success && st.goaled){
-                // ゴール済みならブロック（ローカル追加もさせない）
                 showBlocked("すでにゴールしているため、追加の読み取りはできません。");
                 return;
             }
         }
 
-        // 2) ここから通常処理（localStorage更新）
+        // 2) サーバーで押印を確定（ここがDB版の本体）
+        const stampRes = await postJson("?handler=Stamp", { eventId, spotId, token, visitorId });
+        if(!stampRes.ok){
+            // 通信失敗時：最低限ローカル表示だけ（ただしDB集計は欠ける）
+            const stamps = loadStamps();
+            renderStampList(stamps);
+            document.getElementById("achievement-hint").textContent = "通信に失敗しました。電波状況をご確認ください。";
+            return;
+        }
+
+        const stampData = await stampRes.json();
+        if(!stampData.success){
+            document.getElementById("achievement-hint").textContent = stampData.message || "処理に失敗しました。";
+            return;
+        }
+
+        // result: 0=成功 1=重複 5=ゴール済み
+        if(stampData.result === 5){
+            showBlocked("すでにゴールしているため、追加の読み取りはできません。");
+            return;
+        }
+
         const stamps = loadStamps();
 
-        const already = !!stamps[spotId];
-        if(already){
+        if(stampData.result === 1){
             document.getElementById("badge-duplicate").classList.remove("d-none");
-        }else{
+        } else {
             document.getElementById("badge-new").classList.remove("d-none");
-            stamps[spotId] = new Date().toISOString();
+            stamps[String(spotId)] = new Date().toISOString();
             saveStamps(stamps);
         }
 
@@ -245,16 +254,7 @@
         // 一覧表示
         renderStampList(stamps);
 
-        // サーバーにログ（重複でもログは残す仕様）
-        postJson("?handler=Log", {
-            visitorId,
-            eventId,
-            spotId,
-            isDuplicate: already,
-            userAgent: navigator.userAgent
-        }).catch(()=>{});
-
-        // ゴール条件を満たしているなら達成コード取得（ReadStampでも確認できる仕様）
+        // 3) 達成コード（必須が0なら常に達成）
         const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
 
         const codeEl = document.getElementById("achievement-code");
@@ -266,11 +266,7 @@
             return;
         }
 
-        const res = await postJson("?handler=Achievement", {
-            visitorId,
-            eventId,
-            collectedSpotIds: Object.keys(stamps)
-        });
+        const res = await postJson("?handler=Achievement", { eventId, visitorId });
         if(!res.ok){
             hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。";
             return;
@@ -280,12 +276,11 @@
             hintEl.textContent = data.message || "まだ条件を満たしていません。";
             return;
         }
+
         badgeAch.classList.remove("d-none");
         codeEl.textContent = data.code;
         hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
-    })().catch(() => {
-        // 通信がダメでも最低限は見せたいので、ここではブロックしない
-    });
+    })().catch(() => {});
 })();
 </script>
 }

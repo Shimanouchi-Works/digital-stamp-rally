@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 using DigitalStampRally.Services;
+using DigitalStampRally.Database;
 
 var builder = WebApplication.CreateBuilder(args);
+
+/// dotnet ef dbcontext scaffold "server=127.0.0.1;port=33060;database=DigitalStampRally;uid=root;password=yourpassword" Pomelo.EntityFrameworkCore.MySql -o Database/App -f -n DigitalStampRally.Database --no-onconfiguring
 
 //
 // --------------------
@@ -12,16 +15,28 @@ var builder = WebApplication.CreateBuilder(args);
 //
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IProjectDraftStore, MemoryProjectDraftStore>();
-builder.Services.AddSingleton<IProjectStore, FileProjectStore>();
-builder.Services.AddSingleton<IStampLogStore, FileStampLogStore>();
-builder.Services.AddSingleton<IAchievementStore, FileAchievementStore>();
-builder.Services.AddSingleton<IGoalStore, FileGoalStore>();
+// builder.Services.AddSingleton<IProjectStore, FileProjectStore>();
+// builder.Services.AddSingleton<IStampLogStore, FileStampLogStore>();
+// builder.Services.AddSingleton<IAchievementStore, FileAchievementStore>();
+// builder.Services.AddSingleton<IGoalStore, FileGoalStore>();
+builder.Services.AddScoped<DbEventService>();
+builder.Services.AddScoped<DbStampService>();
 
 // Razor Pages
 builder.Services.AddRazorPages(options =>
 {
     // 管理画面はログイン必須、など後でまとめて指定できる
     // options.Conventions.AuthorizeFolder("/Admin");
+});
+
+// ★ これが必須
+builder.Services.AddDbContext<DigitalStampRallyContext>(options =>
+{
+    var cs = builder.Configuration.GetConnectionString("Default");
+    options.UseMySql(
+        cs,
+        ServerVersion.AutoDetect(cs)
+    );
 });
 
 // API Controllers

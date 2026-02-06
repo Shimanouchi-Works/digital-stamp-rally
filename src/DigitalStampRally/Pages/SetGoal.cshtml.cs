@@ -1,142 +1,178 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using DigitalStampRally.Services;
-using DigitalStampRally.Models;
 
 namespace DigitalStampRally.Pages;
 
 [IgnoreAntiforgeryToken]
 public class SetGoalModel : PageModel
 {
-    private readonly IProjectStore _projectStore;
-    private readonly IGoalStore _goalStore;
-    private readonly IAchievementStore _achievementStore;
+    private readonly DbEventService _eventService;
+    private readonly DbStampService _stampService;
 
-    public SetGoalModel(IProjectStore projectStore, IGoalStore goalStore, IAchievementStore achievementStore)
+    public SetGoalModel(DbEventService eventService, DbStampService stampService)
     {
-        _projectStore = projectStore;
-        _goalStore = goalStore;
-        _achievementStore = achievementStore;
+        _eventService = eventService;
+        _stampService = stampService;
     }
 
-    public string EventId { get; private set; } = "";
-    public string EventTitle { get; private set; } = "";
-    public DateTime ValidFrom { get; private set; }
-    public DateTime ValidTo { get; private set; }
+    public long EventId { get; private set; }
+    public string Token { get; private set; } = ""; // JSのPOSTでも再検証に使う
 
-    public List<string> RequiredSpotIds { get; private set; } = new();
+    public string EventTitle { get; private set; } = "";
+    public DateTime? ValidFrom { get; private set; }
+    public DateTime? ValidTo { get; private set; }
+
+    public List<long> RequiredSpotIds { get; private set; } = new();
 
     // JSで spotId -> name/isRequired を引くためのマップ
-    public Dictionary<string, SpotMeta> SpotMap { get; private set; } = new();
+    public Dictionary<long, SpotMeta> SpotMap { get; private set; } = new();
 
     public string? ErrorMessage { get; private set; }
 
-    public IActionResult OnGet(string? e, string? t)
+    public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
-        if (string.IsNullOrWhiteSpace(e) || string.IsNullOrWhiteSpace(t))
+        if (e == null || string.IsNullOrWhiteSpace(t))
         {
             ErrorMessage = "QRコードの情報が不足しています。";
             return Page();
         }
 
-        if (!_projectStore.TryGet(e, out var project))
+        EventId = e.Value;
+        Token = t;
+
+        var ev = await _eventService.GetEventAsync(EventId);
+        if (ev == null)
         {
             ErrorMessage = "このイベントは見つかりませんでした。";
             return Page();
         }
 
+        // 期限チェック
         var now = DateTime.Now;
-        if (now < project.ValidFrom || now > project.ValidTo)
+        if (ev.StartsAt != null && now < ev.StartsAt)
         {
-            ErrorMessage = "このQRコードは有効期限外です。";
+            ErrorMessage = "このQRコードは有効期限外です（開始前）。";
+            return Page();
+        }
+        if (ev.EndsAt != null && now > ev.EndsAt)
+        {
+            ErrorMessage = "このQRコードは有効期限外です（終了後）。";
             return Page();
         }
 
-        if (!string.Equals(project.GoalToken, t, StringComparison.Ordinal))
+        // ゴールトークン検証（hash照合）
+        var ok = await _eventService.ValidateGoalTokenAsync(EventId, Token);
+        if (!ok)
         {
-            ErrorMessage = "QRコードが無効です（トークン不一致）。";
+            ErrorMessage = "QRコードが無効です。";
             return Page();
         }
 
-        EventId = project.EventId;
-        EventTitle = project.EventTitle;
-        ValidFrom = project.ValidFrom;
-        ValidTo = project.ValidTo;
+        EventTitle = ev.Title;
+        ValidFrom = ev.StartsAt;
+        ValidTo = ev.EndsAt;
 
-        RequiredSpotIds = project.Spots.Where(x => x.IsRequired).Select(x => x.SpotId).ToList();
-        SpotMap = project.Spots.ToDictionary(
-            s => s.SpotId,
-            s => new SpotMeta { Name = s.SpotName, IsRequired = s.IsRequired }
+        var required = await _eventService.GetRequiredSpotIdsAsync(EventId);
+        RequiredSpotIds = required.ToList();
+
+        var spots = await _eventService.GetActiveSpotsAsync(EventId);
+        SpotMap = spots.ToDictionary(
+            s => s.Id,
+            s => new SpotMeta { Name = s.Name, IsRequired = required.Contains(s.Id) }
         );
 
         return Page();
     }
 
-    // ----- Ajax: ゴール済み状態確認 -----
+    // ----- Ajax: ゴール済み状態確認（goals.goaled_at） -----
     public async Task<IActionResult> OnPostStatusAsync([FromBody] StatusRequest req)
     {
-        if (req == null || string.IsNullOrWhiteSpace(req.EventId) || string.IsNullOrWhiteSpace(req.VisitorId))
+        if (req == null || req.EventId <= 0 || string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.VisitorId))
             return new JsonResult(new { success = false });
 
-        var goal = await _goalStore.GetAsync(req.EventId, req.VisitorId);
-        if (goal == null)
+        // 直叩き対策：token再検証
+        if (!await _eventService.ValidateGoalTokenAsync(req.EventId, req.Token))
+            return new JsonResult(new { success = false });
+
+        var ua = Request.Headers.UserAgent.ToString();
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var ipHash = CryptoUtil.Sha256Hex(ip);
+
+        var session = await _stampService.GetOrCreateSessionAsync(req.EventId, req.VisitorId, ua, ipHash);
+
+        // ゴール済みなら code も返す（存在する前提）
+        var goaled = await _stampService.IsGoaledAsync(req.EventId, session.Id);
+        if (!goaled)
             return new JsonResult(new { success = true, goaled = false });
 
-        return new JsonResult(new { success = true, goaled = true, code = goal.AchievementCode });
+        // ゴール済み時：EnsureGoaledAsync は同じコードを返すので安全
+        var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
+        return new JsonResult(new { success = true, goaled = true, code });
     }
 
     // ----- Ajax: ゴール確定 -----
     public async Task<IActionResult> OnPostGoalAsync([FromBody] GoalRequest req)
     {
-        if (req == null || string.IsNullOrWhiteSpace(req.EventId) || string.IsNullOrWhiteSpace(req.VisitorId))
+        if (req == null || req.EventId <= 0 || string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.VisitorId))
             return new JsonResult(new { success = false, message = "リクエスト不正" });
 
-        if (!_projectStore.TryGet(req.EventId, out var project))
+        // token再検証
+        if (!await _eventService.ValidateGoalTokenAsync(req.EventId, req.Token))
+            return new JsonResult(new { success = false, message = "無効なQRです" });
+
+        var ev = await _eventService.GetEventAsync(req.EventId);
+        if (ev == null)
             return new JsonResult(new { success = false, message = "イベント不明" });
 
+        // 期限チェック
         var now = DateTime.Now;
-        if (now < project.ValidFrom || now > project.ValidTo)
-            return new JsonResult(new { success = false, message = "期限外" });
+        if (ev.StartsAt != null && now < ev.StartsAt) return new JsonResult(new { success = false, message = "期限外（開始前）" });
+        if (ev.EndsAt != null && now > ev.EndsAt) return new JsonResult(new { success = false, message = "期限外（終了後）" });
 
-        // 既にゴール済みならその情報を返す（多重押下/再アクセス対策）
-        var existing = await _goalStore.GetAsync(req.EventId, req.VisitorId);
-        if (existing != null)
-            return new JsonResult(new { success = true, code = existing.AchievementCode });
+        var ua = Request.Headers.UserAgent.ToString();
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var ipHash = CryptoUtil.Sha256Hex(ip);
 
-        // 必須条件チェック（クライアント申告の collectedSpotIds を使うMVP）
-        var required = project.Spots.Where(x => x.IsRequired).Select(x => x.SpotId).ToHashSet();
-        var collected = (req.CollectedSpotIds ?? new List<string>()).ToHashSet();
+        var session = await _stampService.GetOrCreateSessionAsync(req.EventId, req.VisitorId, ua, ipHash);
 
-        if (required.Count > 0 && !required.All(collected.Contains))
-            return new JsonResult(new { success = false, message = "必須スタンプが不足しています" });
+        if (session.IsBlocked ?? false)
+            return new JsonResult(new { success = false, message = "ブロックされています" });
 
-        // 達成コード（ReadStampでも使う「いつでも確認できる」もの）
-        var code = await _achievementStore.GetOrCreateAsync(req.EventId, req.VisitorId);
-
-        await _goalStore.SetAsync(new GoalRecord
+        // 既にゴール済みならその情報を返す
+        if (await _stampService.IsGoaledAsync(req.EventId, session.Id))
         {
-            EventId = req.EventId,
-            VisitorId = req.VisitorId,
-            GoaledAt = DateTime.Now,
-            AchievementCode = code,
-            CollectedSpotIds = collected.ToList()
-        });
+            var code0 = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
+            return new JsonResult(new { success = true, code = code0 });
+        }
 
+        // 必須条件チェック：DB stamps で判定（クライアント申告は信用しない）
+        var required = await _eventService.GetRequiredSpotIdsAsync(req.EventId);
+        if (required.Count > 0)
+        {
+            var stamped = await _stampService.GetStampedSpotIdsAsync(req.EventId, session.Id);
+            if (!required.All(stamped.Contains))
+                return new JsonResult(new { success = false, message = "必須スタンプが不足しています" });
+        }
+
+        // ゴール確定：goals.goaled_at を埋める（達成コードも返す）
+        var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
         return new JsonResult(new { success = true, code });
     }
 
     // ---- request models ----
     public class StatusRequest
     {
-        public string EventId { get; set; } = "";
+        public long EventId { get; set; }
+        public string Token { get; set; } = "";
         public string VisitorId { get; set; } = "";
     }
 
     public class GoalRequest
     {
-        public string EventId { get; set; } = "";
+        public long EventId { get; set; }
+        public string Token { get; set; } = "";
         public string VisitorId { get; set; } = "";
-        public List<string>? CollectedSpotIds { get; set; }
     }
 
     public class SpotMeta

@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
@@ -17,14 +16,14 @@ namespace DigitalStampRally.Pages;
 public class CreateNewModel : PageModel
 {
     private readonly IProjectDraftStore _draftStore;
-    private readonly IProjectStore _projectStore;
+    private readonly DbEventService _eventService;
 
     public CreateNewModel(
-                IProjectDraftStore draftStore,
-                IProjectStore projectStore)
+        IProjectDraftStore draftStore,
+        DbEventService eventService)
     {
         _draftStore = draftStore;
-        _projectStore = projectStore;
+        _eventService = eventService;
 
         // QuestPDF ライセンス（Community）
         QuestPDF.Settings.License = LicenseType.Community;
@@ -115,7 +114,7 @@ public class CreateNewModel : PageModel
             return Page();
         }
 
-        // 画像（任意）
+        // 画像（任意）※DBには保存しない（project.json と PDF 用）
         EventImageDto? eventImage = null;
         if (Input.EventImageFile != null && Input.EventImageFile.Length > 0)
         {
@@ -136,9 +135,35 @@ public class CreateNewModel : PageModel
             };
         }
 
-        // プロジェクト生成（MVP: ランダムトークン方式）
-        var project = BuildProject(eventImage);
-        await _projectStore.SaveAsync(project);
+        // =========================
+        // ★ DB保存（events / spots / rewards）
+        // =========================
+        // DBに保存するのは spotName/isRequired だけでOK（tokenは内部生成されhash保存）
+        var spotInputs = Input.Spots
+            .Select(s => (Name: s.SpotName.Trim(), IsRequired: s.IsRequired))
+            .ToList();
+
+        CreateEventResult created;
+        try
+        {
+            created = await _eventService.CreateEventAsync(
+                title: Input.EventTitle.Trim(),
+                startsAt: Input.ValidFrom,
+                endsAt: Input.ValidTo,
+                spots: spotInputs
+            );
+        }
+        catch
+        {
+            ErrorMessage = "DBへの保存に失敗しました。時間をおいて再度お試しください。";
+            return Page();
+        }
+
+        // =========================
+        // project.json / PDF 生成用 ProjectDto を構築
+        // （IDは文字列のまま保持するが、中身は数値文字列）
+        // =========================
+        var project = BuildProjectFromDb(created, eventImage);
 
         // ZIP出力（PDF×(スポット数+2) + project.json）
         var zipBytes = BuildZipPackage(project);
@@ -149,31 +174,28 @@ public class CreateNewModel : PageModel
     }
 
     // --------------------
-    // Project build
+    // Project build (from DB result)
     // --------------------
-    private ProjectDto BuildProject(EventImageDto? image)
+    private ProjectDto BuildProjectFromDb(CreateEventResult created, EventImageDto? image)
     {
-        var eventId = Guid.NewGuid().ToString("N");
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-        var spots = Input.Spots.Select(s => new SpotDto
+        var spots = created.Spots.Select(s => new SpotDto
         {
-            SpotId = Guid.NewGuid().ToString("N"),
-            SpotName = s.SpotName.Trim(),
+            // ProjectDto の互換を保つため string のまま入れる（数値文字列）
+            SpotId = s.SpotId.ToString(),
+            SpotName = s.Name,
             IsRequired = s.IsRequired,
-            SpotToken = RandomToken(16)
+            SpotToken = s.SpotToken // raw token（DBにはhashのみ）
         }).ToList();
-
-        var totalizeToken = RandomToken(24);
-        var totalizePassword = RandomPassword(10);
-
-        // ゴール用
-        var goalToken = RandomToken(24);
 
         return new ProjectDto
         {
             Version = 1,
-            EventId = eventId,
+
+            // ProjectDto の互換を保つため string のまま入れる（数値文字列）
+            EventId = created.EventId.ToString(),
+
             EventTitle = Input.EventTitle.Trim(),
             ValidFrom = Input.ValidFrom,
             ValidTo = Input.ValidTo,
@@ -181,11 +203,10 @@ public class CreateNewModel : PageModel
 
             Spots = spots,
 
-            GoalToken = goalToken,
-            TotalizeToken = totalizeToken,
-            TotalizePassword = totalizePassword,
+            GoalToken = created.GoalToken,
+            TotalizeToken = created.TotalizeToken,
+            TotalizePassword = created.TotalizePassword,
 
-            // URLテンプレ（PDF内のQR生成に使う）
             Urls = new UrlsDto
             {
                 ReadStampBase = $"{baseUrl}/ReadStamp",
@@ -414,22 +435,6 @@ public class CreateNewModel : PageModel
         catch { return null; }
     }
 
-    private static string RandomToken(int bytes)
-    {
-        var buffer = RandomNumberGenerator.GetBytes(bytes);
-        return Convert.ToHexString(Guid.NewGuid().ToByteArray())
-            + Convert.ToHexString(buffer);
-    }
-
-    private static string RandomPassword(int length)
-    {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-        var sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++)
-            sb.Append(chars[Random.Shared.Next(chars.Length)]);
-        return sb.ToString();
-    }
-
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
@@ -469,5 +474,4 @@ public class CreateNewModel : PageModel
         public string SpotName { get; set; } = "";
         public bool IsRequired { get; set; }
     }
-
 }

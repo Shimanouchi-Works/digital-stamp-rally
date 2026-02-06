@@ -74,14 +74,13 @@
 @section Scripts {
 <script>
 (function(){
-    // ----- server values -----
     const eventId = @Html.Raw(JsonSerializer.Serialize(Model.EventId));
-    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {spotId:{name,isRequired}}
-    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds));
+    const token = @Html.Raw(JsonSerializer.Serialize(Model.Token));
+    const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {"123":{name,isRequired}}
+    const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds)); // number[]
 
-    // ----- localStorage -----
     const KEY_VISITOR = "dsr:visitorId";
-    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: timestampIso, ... }
+    const KEY_STAMPS = `dsr:stamps:${eventId}`; // { "123": "iso", ... }
 
     function uuidv4() {
         if (crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -113,13 +112,13 @@
     }
 
     function isRequired(spotId){
-        return requiredSpotIds.includes(spotId);
+        return requiredSpotIds.includes(Number(spotId));
     }
 
     function countRequiredCollected(stamps){
         let c = 0;
         for(const rid of requiredSpotIds){
-            if(stamps[rid]) c++;
+            if(stamps[String(rid)]) c++;
         }
         return c;
     }
@@ -171,7 +170,6 @@
         return res;
     }
 
-    // ----- main -----
     const visitorId = getVisitorId();
     const stamps = loadStamps();
 
@@ -195,9 +193,9 @@
     const codeEl = document.getElementById("achievement-code");
     const codeHint = document.getElementById("achievement-hint");
 
-    // まず「ゴール済みか？」をサーバーに確認（端末が同じなら visitorId で判定）
+    // ゴール済み確認
     (async () => {
-        const res = await postJson("?handler=Status", { eventId, visitorId });
+        const res = await postJson("?handler=Status", { eventId, token, visitorId });
         if(!res.ok) return;
         const data = await res.json();
         if(data.success && data.goaled){
@@ -215,11 +213,7 @@
         btn.disabled = true;
         msg.textContent = "ゴール処理中…";
 
-        const res = await postJson("?handler=Goal", {
-            eventId,
-            visitorId,
-            collectedSpotIds: Object.keys(stamps)
-        });
+        const res = await postJson("?handler=Goal", { eventId, token, visitorId });
 
         if(!res.ok){
             btn.disabled = false;

@@ -1,32 +1,32 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using DigitalStampRally.Database;
 using DigitalStampRally.Services;
-using DigitalStampRally.Models;
 
 namespace DigitalStampRally.Pages;
 
 [IgnoreAntiforgeryToken]
 public class TotalizeModel : PageModel
 {
-    private readonly IProjectStore _projectStore;
-    private readonly IWebHostEnvironment _env;
+    private readonly DigitalStampRallyContext _db;
+    private readonly DbEventService _eventService;
 
-    public TotalizeModel(IProjectStore projectStore, IWebHostEnvironment env)
+    public TotalizeModel(DigitalStampRallyContext db, DbEventService eventService)
     {
-        _projectStore = projectStore;
-        _env = env;
+        _db = db;
+        _eventService = eventService;
     }
 
     // 入力（クエリ）
-    public string EventId { get; private set; } = "";
+    public long EventId { get; private set; }
     public string Token { get; private set; } = "";
 
     // 表示
     public bool IsAuthorized { get; private set; }
     public string EventTitle { get; private set; } = "";
-    public DateTime ValidFrom { get; private set; }
-    public DateTime ValidTo { get; private set; }
+    public DateTime? ValidFrom { get; private set; }
+    public DateTime? ValidTo { get; private set; }
 
     public string? ErrorMessage { get; private set; }
     public string? AuthErrorMessage { get; private set; }
@@ -37,72 +37,74 @@ public class TotalizeModel : PageModel
     public int GoalTotal { get; private set; }
     public int TotalStampReads { get; private set; }
 
-    public Dictionary<string, int> TotalBySpot { get; private set; } = new();
-    public Dictionary<string, List<HourCountRow>> HourlyBySpot { get; private set; } = new();
+    public Dictionary<long, int> TotalBySpot { get; private set; } = new();
+    public Dictionary<long, List<HourCountRow>> HourlyBySpot { get; private set; } = new();
     public List<HourCountRow> GoalsByHour { get; private set; } = new();
 
     // GET: パスワード入力画面
-    public IActionResult OnGet(string? e, string? t)
+    public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
-        if (string.IsNullOrWhiteSpace(e) || string.IsNullOrWhiteSpace(t))
+        if (e == null || string.IsNullOrWhiteSpace(t))
         {
             ErrorMessage = "URLの情報が不足しています。";
             return Page();
         }
 
-        EventId = e;
+        EventId = e.Value;
         Token = t;
 
-        if (!_projectStore.TryGet(e, out var project))
+        var ev = await _eventService.GetEventAsync(EventId);
+        if (ev == null)
         {
             ErrorMessage = "イベントが見つかりませんでした。";
             return Page();
         }
 
-        // トークン検証
-        if (!string.Equals(project.TotalizeToken, t, StringComparison.Ordinal))
+        // トークン検証（hash）
+        if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
         {
             ErrorMessage = "集計画面トークンが無効です。";
             return Page();
         }
 
-        // 表示用
-        EventTitle = project.EventTitle;
-        ValidFrom = project.ValidFrom;
-        ValidTo = project.ValidTo;
+        EventTitle = ev.Title;
+        ValidFrom = ev.StartsAt;
+        ValidTo = ev.EndsAt;
 
         return Page();
     }
 
     // POST: パスワード認証して集計表示
-    public IActionResult OnPostAuth(string? e, string? t, string? password)
+    public async Task<IActionResult> OnPostAuthAsync(long? e, string? t, string? password)
     {
-        if (string.IsNullOrWhiteSpace(e) || string.IsNullOrWhiteSpace(t))
+        if (e == null || string.IsNullOrWhiteSpace(t))
         {
             ErrorMessage = "URLの情報が不足しています。";
             return Page();
         }
 
-        EventId = e;
+        EventId = e.Value;
         Token = t;
 
-        if (!_projectStore.TryGet(e, out var project))
+        var ev = await _eventService.GetEventAsync(EventId);
+        if (ev == null)
         {
             ErrorMessage = "イベントが見つかりませんでした。";
             return Page();
         }
 
-        if (!string.Equals(project.TotalizeToken, t, StringComparison.Ordinal))
+        if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
         {
             ErrorMessage = "集計画面トークンが無効です。";
             return Page();
         }
 
-        EventTitle = project.EventTitle;
-        ValidFrom = project.ValidFrom;
-        ValidTo = project.ValidTo;
+        EventTitle = ev.Title;
+        ValidFrom = ev.StartsAt;
+        ValidTo = ev.EndsAt;
 
-        if (string.IsNullOrWhiteSpace(password) || !string.Equals(password, project.TotalizePassword, StringComparison.Ordinal))
+        // パスワード検証（hash）
+        if (string.IsNullOrWhiteSpace(password) || !await _eventService.ValidateTotalizePasswordAsync(EventId, password))
         {
             AuthErrorMessage = "パスワードが違います。";
             return Page();
@@ -110,90 +112,94 @@ public class TotalizeModel : PageModel
 
         IsAuthorized = true;
 
-        Spots = project.Spots
-            .Select(s => new SpotView { SpotId = s.SpotId, SpotName = s.SpotName, IsRequired = s.IsRequired })
+        // スポット一覧
+        var spots = await _db.EventSpots
+            .Where(x => x.EventsId == EventId && (x.IsActive == null || x.IsActive == true))
+            .OrderBy(x => x.SortOrder ?? 0)
+            .ThenBy(x => x.Id)
+            .Select(x => new { x.Id, x.Name })
+            .ToListAsync();
+
+        // 必須スポット（event_rewards(type=1/2, active)に紐づくスポット）
+        var requiredSpotIds = await GetRequiredSpotIdsAsync(EventId);
+
+        Spots = spots
+            .Select(s => new SpotView
+            {
+                SpotId = s.Id,
+                SpotName = s.Name,
+                IsRequired = requiredSpotIds.Contains(s.Id)
+            })
             .ToList();
 
-        // ---- 集計実行 ----
-        var stampLogs = ReadStampLogs(e);
-        var goals = ReadGoals(e);
+        // --------------------
+        // 集計（DB）
+        // --------------------
 
-        // 読み取り回数：押印相当（IsDuplicate=falseのみ）
-        var effectiveLogs = stampLogs.Where(x => x.IsDuplicate == false).ToList();
+        // 押印相当：stamps は一意（重複除外済み）
+        var stamps = _db.Stamps
+            .Where(x => x.EventsId == EventId && x.StampedAt != null);
 
-        TotalStampReads = effectiveLogs.Count;
+        TotalStampReads = await stamps.CountAsync();
 
         // 合計（spot別）
-        TotalBySpot = effectiveLogs
-            .GroupBy(x => x.SpotId)
-            .ToDictionary(g => g.Key, g => g.Count());
+        TotalBySpot = await stamps
+            .GroupBy(x => x.EventSpotsId)
+            .Select(g => new { SpotId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.SpotId, x => x.Count);
 
         // 毎時（spot別）
-        HourlyBySpot = effectiveLogs
-            .GroupBy(x => x.SpotId)
+        var stampHourRows = await stamps
+            .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
+            .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
+            .OrderBy(x => x.EventSpotsId)
+            .ThenBy(x => x.Hour)
+            .ToListAsync();
+
+        HourlyBySpot = stampHourRows
+            .GroupBy(x => x.EventSpotsId)
             .ToDictionary(
                 g => g.Key,
-                g => g.GroupBy(x => TruncToHour(x.At))
-                      .OrderBy(x => x.Key)
-                      .Select(x => new HourCountRow { Hour = x.Key, Count = x.Count() })
-                      .ToList()
+                g => g.Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count }).ToList()
             );
 
         // ゴール人数（合計・毎時）
-        GoalTotal = goals.Count;
+        var goals = _db.Goals
+            .Where(x => x.EventsId == EventId && x.GoaledAt != null);
 
-        GoalsByHour = goals
-            .GroupBy(x => TruncToHour(x.GoaledAt))
-            .OrderBy(x => x.Key)
-            .Select(x => new HourCountRow { Hour = x.Key, Count = x.Count() })
+        GoalTotal = await goals.CountAsync();
+
+        var goalHourRows = await goals
+            .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
+            .Select(g => new { Hour = g.Key, Count = g.Count() })
+            .OrderBy(x => x.Hour)
+            .ToListAsync();
+
+        GoalsByHour = goalHourRows
+            .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
             .ToList();
 
         return Page();
     }
 
-    // --------------------
-    // ファイル読み出し（MVP）
-    // --------------------
-    private List<StampLogLine> ReadStampLogs(string eventId)
+    private async Task<HashSet<long>> GetRequiredSpotIdsAsync(long eventId)
     {
-        var dir = Path.Combine(_env.ContentRootPath, "App_Data", "logs");
-        var path = Path.Combine(dir, $"{eventId}_stamp.log");
-        if (!System.IO.File.Exists(path)) return new List<StampLogLine>();
+        var rows = await _db.Set<RequiredSpotRow>()
+            .FromSqlInterpolated($@"
+                SELECT DISTINCT rrs.event_spots_id
+                FROM reward_required_spots rrs
+                JOIN event_rewards er
+                ON er.id = rrs.event_rewards_id
+                AND er.events_id = rrs.event_rewards_events_id
+                WHERE er.events_id = {eventId}
+                AND (er.is_active IS NULL OR er.is_active = 1)
+                AND er.type IN (1,2)
+            ")
+            .ToListAsync();
 
-        var result = new List<StampLogLine>();
-        foreach (var line in System.IO.File.ReadLines(path))
-        {
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            try
-            {
-                var log = JsonSerializer.Deserialize<StampLogLine>(line);
-                if (log != null) result.Add(log);
-            }
-            catch
-            {
-                // 壊れた行はスキップ
-            }
-        }
-        return result;
+        return rows.Select(x => x.EventSpotsId).ToHashSet();
     }
 
-    private List<GoalRecord> ReadGoals(string eventId)
-    {
-        var dir = Path.Combine(_env.ContentRootPath, "App_Data", "goals");
-        var path = Path.Combine(dir, $"{eventId}.json");
-        if (!System.IO.File.Exists(path)) return new List<GoalRecord>();
-
-        try
-        {
-            var json = System.IO.File.ReadAllText(path);
-            var map = JsonSerializer.Deserialize<Dictionary<string, GoalRecord>>(json) ?? new();
-            return map.Values.ToList();
-        }
-        catch
-        {
-            return new List<GoalRecord>();
-        }
-    }
 
     private static DateTime TruncToHour(DateTime dt)
         => new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, 0, 0);
@@ -203,7 +209,7 @@ public class TotalizeModel : PageModel
     // --------------------
     public class SpotView
     {
-        public string SpotId { get; set; } = "";
+        public long SpotId { get; set; }
         public string SpotName { get; set; } = "";
         public bool IsRequired { get; set; }
     }
@@ -213,16 +219,5 @@ public class TotalizeModel : PageModel
         public DateTime Hour { get; set; }
         public int Count { get; set; }
         public string HourLabel => Hour.ToString("yyyy/MM/dd HH:00");
-    }
-
-    // ReadStampのログ（FileStampLogStore が吐くJSONに合わせる）
-    public class StampLogLine
-    {
-        public DateTime At { get; set; }
-        public string EventId { get; set; } = "";
-        public string SpotId { get; set; } = "";
-        public string VisitorId { get; set; } = "";
-        public bool IsDuplicate { get; set; }
-        public string UserAgent { get; set; } = "";
     }
 }
