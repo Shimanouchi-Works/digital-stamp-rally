@@ -125,13 +125,23 @@ public class DbEventService
             UpdatedAt = DateTime.Now
         });
 
+        // foreach (var s in createdSpots.Where(x => x.IsRequired))
+        // {
+        //     _db.Add(new Dictionary<string, object>
+        //     {
+        //         ["EventRewardsId"] = rewardId,
+        //         ["EventRewardsEventsId"] = eventId,
+        //         ["EventSpotsId"] = s.SpotId,
+        //         ["EventSpotsEventsId"] = eventId
+        //     });
+        // }
         foreach (var s in createdSpots.Where(x => x.IsRequired))
         {
-            _db.Add(new Dictionary<string, object>
+            _db.Set<Dictionary<string, object>>("RewardRequiredSpot").Add(new Dictionary<string, object>
             {
                 ["EventRewardsId"] = rewardId,
                 ["EventRewardsEventsId"] = eventId,
-                ["EventSpotsId"] = s.SpotId,
+                ["EventSpotsId"] = s.SpotId,          // ← ここは s.SpotId じゃなく DBのID（long）にするのが基本
                 ["EventSpotsEventsId"] = eventId
             });
         }

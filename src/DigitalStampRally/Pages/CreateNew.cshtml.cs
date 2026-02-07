@@ -17,13 +17,16 @@ public class CreateNewModel : PageModel
 {
     private readonly IProjectDraftStore _draftStore;
     private readonly DbEventService _eventService;
+    private readonly IConfiguration _config;
 
     public CreateNewModel(
         IProjectDraftStore draftStore,
-        DbEventService eventService)
+        DbEventService eventService,
+        IConfiguration config)
     {
         _draftStore = draftStore;
         _eventService = eventService;
+        _config = config;
 
         // QuestPDF ライセンス（Community）
         QuestPDF.Settings.License = LicenseType.Community;
@@ -153,8 +156,9 @@ public class CreateNewModel : PageModel
                 spots: spotInputs
             );
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"{ex}");
             ErrorMessage = "DBへの保存に失敗しました。時間をおいて再度お試しください。";
             return Page();
         }
@@ -178,7 +182,8 @@ public class CreateNewModel : PageModel
     // --------------------
     private ProjectDto BuildProjectFromDb(CreateEventResult created, EventImageDto? image)
     {
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        // var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var baseUrl = _config["QrBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
 
         var spots = created.Spots.Select(s => new SpotDto
         {
