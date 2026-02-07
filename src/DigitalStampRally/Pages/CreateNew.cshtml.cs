@@ -39,142 +39,159 @@ public class CreateNewModel : PageModel
 
     public void OnGet(string? load)
     {
-        // デフォルト値
-        if (Input.ValidFrom == default) Input.ValidFrom = DateTime.Now.AddMinutes(5);
-        if (Input.ValidTo == default) Input.ValidTo = DateTime.Now.AddHours(6);
-
-        // loadトークンがあればドラフト復元
-        if (!string.IsNullOrWhiteSpace(load))
+        try
         {
-            if (_draftStore.TryGet(load, out var json))
+            // デフォルト値
+            if (Input.ValidFrom == default) Input.ValidFrom = DateTime.Now.AddMinutes(5);
+            if (Input.ValidTo == default) Input.ValidTo = DateTime.Now.AddHours(6);
+
+            // loadトークンがあればドラフト復元
+            if (!string.IsNullOrWhiteSpace(load))
             {
-                try
+                if (_draftStore.TryGet(load, out var json))
                 {
-                    var draft = JsonSerializer.Deserialize<ProjectDraftDto>(json, JsonOptions());
-                    if (draft != null)
+                    try
                     {
-                        Input.EventTitle = draft.EventTitle ?? "";
-                        Input.ValidFrom = draft.ValidFrom;
-                        Input.ValidTo = draft.ValidTo;
-
-                        Input.Spots = draft.Spots?.Select(s => new SpotInputModel
+                        var draft = JsonSerializer.Deserialize<ProjectDraftDto>(json, JsonOptions());
+                        if (draft != null)
                         {
-                            SpotName = s.SpotName ?? "",
-                            IsRequired = s.IsRequired
-                        }).ToList() ?? new List<SpotInputModel> { new() };
+                            Input.EventTitle = draft.EventTitle ?? "";
+                            Input.ValidFrom = draft.ValidFrom;
+                            Input.ValidTo = draft.ValidTo;
 
-                        // 使い切りにしたい場合は消してOK（必要ならこの行を外す）
-                        _draftStore.Remove(load);
+                            Input.Spots = draft.Spots?.Select(s => new SpotInputModel
+                            {
+                                SpotName = s.SpotName ?? "",
+                                IsRequired = s.IsRequired
+                            }).ToList() ?? new List<SpotInputModel> { new() };
+
+                            // 使い切りにしたい場合は消してOK（必要ならこの行を外す）
+                            _draftStore.Remove(load);
+                        }
+                    }
+                    catch
+                    {
+                        ErrorMessage = "読み出したJSONの解析に失敗しました（形式が不正の可能性があります）。";
                     }
                 }
-                catch
+                else
                 {
-                    ErrorMessage = "読み出したJSONの解析に失敗しました（形式が不正の可能性があります）。";
+                    ErrorMessage = "読み出しトークンが無効、または期限切れです。Indexから再度読み出してください。";
                 }
             }
-            else
-            {
-                ErrorMessage = "読み出しトークンが無効、または期限切れです。Indexから再度読み出してください。";
-            }
-        }
 
-        // Spotsが空なら1件
-        if (Input.Spots.Count == 0) Input.Spots.Add(new SpotInputModel());
+            // Spotsが空なら1件
+            if (Input.Spots.Count == 0) Input.Spots.Add(new SpotInputModel());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            ErrorMessage = "不明なエラー";
+        }
     }
 
     public async Task<IActionResult> OnPostGenerateAsync()
     {
-        // 入力の基本チェック
-        if (!ModelState.IsValid)
-            return Page();
-
-        // Spots追加バリデーション（空・重複）
-        var cleaned = Input.Spots
-            .Select(s => (s.SpotName ?? "").Trim())
-            .ToList();
-
-        if (cleaned.Count < 1)
+        try
         {
-            ErrorMessage = "掲示場所は最低1件必要です。";
-            return Page();
-        }
+            // 入力の基本チェック
+            if (!ModelState.IsValid)
+                return Page();
 
-        if (cleaned.Any(string.IsNullOrWhiteSpace))
-        {
-            ErrorMessage = "掲示場所名が空の行があります。";
-            return Page();
-        }
+            // Spots追加バリデーション（空・重複）
+            var cleaned = Input.Spots
+                .Select(s => (s.SpotName ?? "").Trim())
+                .ToList();
 
-        if (cleaned.Distinct(StringComparer.OrdinalIgnoreCase).Count() != cleaned.Count)
-        {
-            ErrorMessage = "掲示場所名が重複しています。";
-            return Page();
-        }
-
-        if (Input.ValidFrom >= Input.ValidTo)
-        {
-            ErrorMessage = "有効期間（開始）は（終了）より前にしてください。";
-            return Page();
-        }
-
-        // 画像（任意）※DBには保存しない（project.json と PDF 用）
-        EventImageDto? eventImage = null;
-        if (Input.EventImageFile != null && Input.EventImageFile.Length > 0)
-        {
-            const long maxBytes = 2 * 1024 * 1024; // 2MB
-            if (Input.EventImageFile.Length > maxBytes)
+            if (cleaned.Count < 1)
             {
-                ErrorMessage = "イベント画像が大きすぎます（最大 2MB）。";
+                ErrorMessage = "掲示場所は最低1件必要です。";
                 return Page();
             }
 
-            await using var ms = new MemoryStream();
-            await Input.EventImageFile.CopyToAsync(ms);
-            eventImage = new EventImageDto
+            if (cleaned.Any(string.IsNullOrWhiteSpace))
             {
-                FileName = Input.EventImageFile.FileName,
-                ContentType = Input.EventImageFile.ContentType ?? "application/octet-stream",
-                Base64 = Convert.ToBase64String(ms.ToArray())
-            };
-        }
+                ErrorMessage = "掲示場所名が空の行があります。";
+                return Page();
+            }
 
-        // =========================
-        // ★ DB保存（events / spots / rewards）
-        // =========================
-        // DBに保存するのは spotName/isRequired だけでOK（tokenは内部生成されhash保存）
-        var spotInputs = Input.Spots
-            .Select(s => (Name: s.SpotName.Trim(), IsRequired: s.IsRequired))
-            .ToList();
+            if (cleaned.Distinct(StringComparer.OrdinalIgnoreCase).Count() != cleaned.Count)
+            {
+                ErrorMessage = "掲示場所名が重複しています。";
+                return Page();
+            }
 
-        CreateEventResult created;
-        try
-        {
-            created = await _eventService.CreateEventAsync(
-                title: Input.EventTitle.Trim(),
-                startsAt: Input.ValidFrom,
-                endsAt: Input.ValidTo,
-                spots: spotInputs
-            );
+            if (Input.ValidFrom >= Input.ValidTo)
+            {
+                ErrorMessage = "有効期間（開始）は（終了）より前にしてください。";
+                return Page();
+            }
+
+            // 画像（任意）※DBには保存しない（project.json と PDF 用）
+            EventImageDto? eventImage = null;
+            if (Input.EventImageFile != null && Input.EventImageFile.Length > 0)
+            {
+                const long maxBytes = 2 * 1024 * 1024; // 2MB
+                if (Input.EventImageFile.Length > maxBytes)
+                {
+                    ErrorMessage = "イベント画像が大きすぎます（最大 2MB）。";
+                    return Page();
+                }
+
+                await using var ms = new MemoryStream();
+                await Input.EventImageFile.CopyToAsync(ms);
+                eventImage = new EventImageDto
+                {
+                    FileName = Input.EventImageFile.FileName,
+                    ContentType = Input.EventImageFile.ContentType ?? "application/octet-stream",
+                    Base64 = Convert.ToBase64String(ms.ToArray())
+                };
+            }
+
+            // =========================
+            // ★ DB保存（events / spots / rewards）
+            // =========================
+            // DBに保存するのは spotName/isRequired だけでOK（tokenは内部生成されhash保存）
+            var spotInputs = Input.Spots
+                .Select(s => (Name: s.SpotName.Trim(), IsRequired: s.IsRequired))
+                .ToList();
+
+            CreateEventResult created;
+            try
+            {
+                created = await _eventService.CreateEventAsync(
+                    title: Input.EventTitle.Trim(),
+                    startsAt: Input.ValidFrom,
+                    endsAt: Input.ValidTo,
+                    spots: spotInputs
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{ex}");
+                ErrorMessage = "DBへの保存に失敗しました。時間をおいて再度お試しください。";
+                return Page();
+            }
+
+            // =========================
+            // project.json / PDF 生成用 ProjectDto を構築
+            // （IDは文字列のまま保持するが、中身は数値文字列）
+            // =========================
+            var project = BuildProjectFromDb(created, eventImage);
+
+            // ZIP出力（PDF×(スポット数+2) + project.json）
+            var zipBytes = BuildZipPackage(project);
+
+            var safeTitle = SanitizeFileName(Input.EventTitle);
+            var fileName = $"StampRally_{safeTitle}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            return File(zipBytes, "application/zip", fileName);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"{ex}");
-            ErrorMessage = "DBへの保存に失敗しました。時間をおいて再度お試しください。";
+            Console.WriteLine(ex);
+            ErrorMessage = "不明なエラー";
             return Page();
         }
-
-        // =========================
-        // project.json / PDF 生成用 ProjectDto を構築
-        // （IDは文字列のまま保持するが、中身は数値文字列）
-        // =========================
-        var project = BuildProjectFromDb(created, eventImage);
-
-        // ZIP出力（PDF×(スポット数+2) + project.json）
-        var zipBytes = BuildZipPackage(project);
-
-        var safeTitle = SanitizeFileName(Input.EventTitle);
-        var fileName = $"StampRally_{safeTitle}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
-        return File(zipBytes, "application/zip", fileName);
     }
 
     // --------------------

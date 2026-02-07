@@ -44,32 +44,40 @@ public class TotalizeModel : PageModel
     // GET: パスワード入力画面
     public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
-        if (e == null || string.IsNullOrWhiteSpace(t))
+        try
         {
-            ErrorMessage = "URLの情報が不足しています。";
-            return Page();
+            if (e == null || string.IsNullOrWhiteSpace(t))
+            {
+                ErrorMessage = "URLの情報が不足しています。";
+                return Page();
+            }
+
+            EventId = e.Value;
+            Token = t;
+
+            var ev = await _eventService.GetEventAsync(EventId);
+            if (ev == null)
+            {
+                ErrorMessage = "イベントが見つかりませんでした。";
+                return Page();
+            }
+
+            // トークン検証（hash）
+            if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
+            {
+                ErrorMessage = "集計画面トークンが無効です。";
+                return Page();
+            }
+
+            EventTitle = ev.Title;
+            ValidFrom = ev.StartsAt;
+            ValidTo = ev.EndsAt;
         }
-
-        EventId = e.Value;
-        Token = t;
-
-        var ev = await _eventService.GetEventAsync(EventId);
-        if (ev == null)
+        catch (Exception ex)
         {
-            ErrorMessage = "イベントが見つかりませんでした。";
-            return Page();
+            Console.WriteLine(ex);
+            ErrorMessage = "不明なエラー";
         }
-
-        // トークン検証（hash）
-        if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
-        {
-            ErrorMessage = "集計画面トークンが無効です。";
-            return Page();
-        }
-
-        EventTitle = ev.Title;
-        ValidFrom = ev.StartsAt;
-        ValidTo = ev.EndsAt;
 
         return Page();
     }
@@ -77,107 +85,115 @@ public class TotalizeModel : PageModel
     // POST: パスワード認証して集計表示
     public async Task<IActionResult> OnPostAuthAsync(long? e, string? t, string? password)
     {
-        if (e == null || string.IsNullOrWhiteSpace(t))
+        try
         {
-            ErrorMessage = "URLの情報が不足しています。";
-            return Page();
-        }
-
-        EventId = e.Value;
-        Token = t;
-
-        var ev = await _eventService.GetEventAsync(EventId);
-        if (ev == null)
-        {
-            ErrorMessage = "イベントが見つかりませんでした。";
-            return Page();
-        }
-
-        if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
-        {
-            ErrorMessage = "集計画面トークンが無効です。";
-            return Page();
-        }
-
-        EventTitle = ev.Title;
-        ValidFrom = ev.StartsAt;
-        ValidTo = ev.EndsAt;
-
-        // パスワード検証（hash）
-        if (string.IsNullOrWhiteSpace(password) || !await _eventService.ValidateTotalizePasswordAsync(EventId, password))
-        {
-            AuthErrorMessage = "パスワードが違います。";
-            return Page();
-        }
-
-        IsAuthorized = true;
-
-        // スポット一覧
-        var spots = await _db.EventSpots
-            .Where(x => x.EventsId == EventId && (x.IsActive == null || x.IsActive == true))
-            .OrderBy(x => x.SortOrder ?? 0)
-            .ThenBy(x => x.Id)
-            .Select(x => new { x.Id, x.Name })
-            .ToListAsync();
-
-        // 必須スポット（event_rewards(type=1/2, active)に紐づくスポット）
-        var requiredSpotIds = await GetRequiredSpotIdsAsync(EventId);
-
-        Spots = spots
-            .Select(s => new SpotView
+            if (e == null || string.IsNullOrWhiteSpace(t))
             {
-                SpotId = s.Id,
-                SpotName = s.Name,
-                IsRequired = requiredSpotIds.Contains(s.Id)
-            })
-            .ToList();
+                ErrorMessage = "URLの情報が不足しています。";
+                return Page();
+            }
 
-        // --------------------
-        // 集計（DB）
-        // --------------------
+            EventId = e.Value;
+            Token = t;
 
-        // 押印相当：stamps は一意（重複除外済み）
-        var stamps = _db.Stamps
-            .Where(x => x.EventsId == EventId && x.StampedAt != null);
+            var ev = await _eventService.GetEventAsync(EventId);
+            if (ev == null)
+            {
+                ErrorMessage = "イベントが見つかりませんでした。";
+                return Page();
+            }
 
-        TotalStampReads = await stamps.CountAsync();
+            if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
+            {
+                ErrorMessage = "集計画面トークンが無効です。";
+                return Page();
+            }
 
-        // 合計（spot別）
-        TotalBySpot = await stamps
-            .GroupBy(x => x.EventSpotsId)
-            .Select(g => new { SpotId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.SpotId, x => x.Count);
+            EventTitle = ev.Title;
+            ValidFrom = ev.StartsAt;
+            ValidTo = ev.EndsAt;
 
-        // 毎時（spot別）
-        var stampHourRows = await stamps
-            .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
-            .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
-            .OrderBy(x => x.EventSpotsId)
-            .ThenBy(x => x.Hour)
-            .ToListAsync();
+            // パスワード検証（hash）
+            if (string.IsNullOrWhiteSpace(password) || !await _eventService.ValidateTotalizePasswordAsync(EventId, password))
+            {
+                AuthErrorMessage = "パスワードが違います。";
+                return Page();
+            }
 
-        HourlyBySpot = stampHourRows
-            .GroupBy(x => x.EventSpotsId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count }).ToList()
-            );
+            IsAuthorized = true;
 
-        // ゴール人数（合計・毎時）
-        var goals = _db.Goals
-            .Where(x => x.EventsId == EventId && x.GoaledAt != null);
+            // スポット一覧
+            var spots = await _db.EventSpots
+                .Where(x => x.EventsId == EventId && (x.IsActive == null || x.IsActive == true))
+                .OrderBy(x => x.SortOrder ?? 0)
+                .ThenBy(x => x.Id)
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
 
-        GoalTotal = await goals.CountAsync();
+            // 必須スポット（event_rewards(type=1/2, active)に紐づくスポット）
+            var requiredSpotIds = await GetRequiredSpotIdsAsync(EventId);
 
-        var goalHourRows = await goals
-            .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
-            .Select(g => new { Hour = g.Key, Count = g.Count() })
-            .OrderBy(x => x.Hour)
-            .ToListAsync();
+            Spots = spots
+                .Select(s => new SpotView
+                {
+                    SpotId = s.Id,
+                    SpotName = s.Name,
+                    IsRequired = requiredSpotIds.Contains(s.Id)
+                })
+                .ToList();
 
-        GoalsByHour = goalHourRows
-            .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
-            .ToList();
+            // --------------------
+            // 集計（DB）
+            // --------------------
+
+            // 押印相当：stamps は一意（重複除外済み）
+            var stamps = _db.Stamps
+                .Where(x => x.EventsId == EventId && x.StampedAt != null);
+
+            TotalStampReads = await stamps.CountAsync();
+
+            // 合計（spot別）
+            TotalBySpot = await stamps
+                .GroupBy(x => x.EventSpotsId)
+                .Select(g => new { SpotId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SpotId, x => x.Count);
+
+            // 毎時（spot別）
+            var stampHourRows = await stamps
+                .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
+                .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
+                .OrderBy(x => x.EventSpotsId)
+                .ThenBy(x => x.Hour)
+                .ToListAsync();
+
+            HourlyBySpot = stampHourRows
+                .GroupBy(x => x.EventSpotsId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count }).ToList()
+                );
+
+            // ゴール人数（合計・毎時）
+            var goals = _db.Goals
+                .Where(x => x.EventsId == EventId && x.GoaledAt != null);
+
+            GoalTotal = await goals.CountAsync();
+
+            var goalHourRows = await goals
+                .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
+                .Select(g => new { Hour = g.Key, Count = g.Count() })
+                .OrderBy(x => x.Hour)
+                .ToListAsync();
+
+            GoalsByHour = goalHourRows
+                .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            ErrorMessage = "不明なエラー";
+        }
 
         return Page();
     }
