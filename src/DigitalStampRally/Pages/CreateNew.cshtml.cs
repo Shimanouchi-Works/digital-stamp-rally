@@ -304,7 +304,11 @@ public class CreateNewModel : PageModel
 
                     if (eventImage != null)
                     {
-                        col.Item().PaddingTop(8).Image(eventImage).FitWidth();
+                        //col.Item().PaddingTop(8).Image(eventImage).FitWidth();
+                        col.Item().PaddingTop(8)
+                            .Height(160)              // ★最大高さを固定
+                            .Image(eventImage)
+                            .FitArea();               // ★枠内に収める
                     }
 
                     col.Item().PaddingTop(14).Row(row =>
@@ -356,7 +360,13 @@ public class CreateNewModel : PageModel
                     col.Item().Text(project.EventTitle).FontSize(14).FontColor(Colors.Grey.Darken2);
 
                     if (eventImage != null)
-                        col.Item().PaddingTop(8).Image(eventImage).FitWidth();
+                    {
+                        // col.Item().PaddingTop(8).Image(eventImage).FitWidth();
+                        col.Item().PaddingTop(8)
+                            .Height(160)              // ★最大高さを固定
+                            .Image(eventImage)
+                            .FitArea();               // ★枠内に収める
+                    }
 
                     col.Item().PaddingTop(14).Row(row =>
                     {
@@ -372,6 +382,9 @@ public class CreateNewModel : PageModel
                             r.Item().Text("アクセス方法").SemiBold();
                             r.Item().Text("1) QRを読み取る（またはURLを入力）");
                             r.Item().Text("2) パスワードを入力");
+
+                            r.Item().PaddingTop(10).Text("集計画面URL（PC用）").SemiBold();
+                            r.Item().Text(url).FontSize(10).FontColor(Colors.Grey.Darken2);
 
                             r.Item().PaddingTop(10).Text("パスワード").SemiBold();
                             r.Item().Text(project.TotalizePassword).FontSize(18).SemiBold();
@@ -405,8 +418,14 @@ public class CreateNewModel : PageModel
                     col.Item().PaddingTop(6).Text(eventTitle).FontSize(14).SemiBold();
 
                     if (eventImage != null)
-                        col.Item().PaddingTop(8).Image(eventImage).FitWidth();
-
+                    {
+                       // col.Item().PaddingTop(8).Image(eventImage).FitWidth();
+                        col.Item().PaddingTop(8)
+                            .Height(160)              // ★最大高さを固定
+                            .Image(eventImage)
+                            .FitArea();               // ★枠内に収める                        
+                    }
+ 
                     col.Item().PaddingTop(16).Border(1).Padding(10).AlignCenter()
                         .Column(c =>
                         {
