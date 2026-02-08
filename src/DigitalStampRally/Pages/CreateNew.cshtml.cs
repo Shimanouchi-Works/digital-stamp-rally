@@ -415,7 +415,14 @@ public class CreateNewModel : PageModel
         }).GeneratePdf();
     }
 
-    private byte[] BuildSimpleQrPdf(string title, string subtitle, string eventTitle, DateTime validFrom, DateTime validTo, string url, byte[]? eventImage)
+    private byte[] BuildSimpleQrPdf(
+        string title,
+        string subtitle,
+        string eventTitle,
+        DateTime validFrom,
+        DateTime validTo,
+        string url,
+        byte[]? eventImage)
     {
         var qrPng = BuildQrPng(url);
 
@@ -429,28 +436,47 @@ public class CreateNewModel : PageModel
 
                 page.Content().Column(col =>
                 {
-                    col.Item().Text(title).FontSize(22).SemiBold();
+                    // スポット掲示用に寄せる：イベント名を主役に
+                    col.Item().Text(eventTitle).FontSize(22).SemiBold();
+
+                    // タイトル/説明（サブ）
+                    col.Item().PaddingTop(4).Text(title).FontSize(14).SemiBold();
                     col.Item().Text(subtitle).FontColor(Colors.Grey.Darken2);
 
-                    col.Item().PaddingTop(6).Text(eventTitle).FontSize(14).SemiBold();
-
+                    // 画像（任意）
                     if (eventImage != null)
                     {
-                       // col.Item().PaddingTop(8).Image(eventImage).FitWidth();
                         col.Item().PaddingTop(8)
-                            .Height(160)              // ★最大高さを固定
+                            .Height(160)
                             .Image(eventImage)
-                            .FitArea();               // ★枠内に収める                        
+                            .FitArea();
                     }
- 
-                    col.Item().PaddingTop(16).Border(1).Padding(10).AlignCenter()
-                        .Column(c =>
+
+                    // ここが肝：スポット用と同じQR枠サイズにする
+                    col.Item().PaddingTop(14).Row(row =>
+                    {
+                        row.RelativeItem().Column(left =>
                         {
-                            c.Item().Image(qrPng).FitArea();
-                            c.Item().PaddingTop(6).Text("QRを読み取る").FontSize(10);
+                            left.Item().Text("用途：ゴール用QR").FontSize(16).SemiBold();
+                            left.Item().PaddingTop(6).Text("来場者がゴール時に読み取ります。");
+
+                            left.Item().PaddingTop(10)
+                                .Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
                         });
 
-                    col.Item().PaddingTop(12).Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
+                        row.ConstantItem(180).AlignMiddle().AlignCenter()
+                            .Border(1).Padding(8)
+                            .Column(q =>
+                            {
+                                q.Item().Image(qrPng).FitArea();
+                                q.Item().PaddingTop(6).Text("読み取りはこちら").FontSize(10).AlignCenter();
+                            });
+                    });
+
+                    // 注意書き（スポットと揃える）
+                    col.Item().PaddingTop(16).Text("注意：").SemiBold();
+                    col.Item().Text("・通信が必要です");
+                    col.Item().Text("・同じ端末（同じブラウザ）で集める必要があります");
                 });
             });
         }).GeneratePdf();
