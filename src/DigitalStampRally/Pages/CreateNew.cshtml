@@ -29,7 +29,7 @@
                 <div class="mb-3">
                     <label class="form-label">イベント画像（任意）</label>
                     <input class="form-control" type="file" asp-for="Input.EventImageFile" accept="image/*" />
-                    <div class="form-text">PDFに掲載されます（初期リリース想定：最大 2MB）。</div>
+                    <div class="form-text">PDFに掲載されます。</div>
                     <span class="text-danger small" asp-validation-for="Input.EventImageFile"></span>
                 </div>
 
@@ -117,7 +117,7 @@
         </div>
 
         <div class="d-flex gap-2">
-            <button class="btn btn-primary" type="submit">
+            <button class="btn btn-primary" type="submit" id="btnSubmit" disabled>
                 作成する（PDF + JSONをZIPで出力）
             </button>
             <a class="btn btn-outline-secondary" href="/Index">戻る</a>
@@ -133,6 +133,11 @@
             const tbody = document.getElementById('spotTbody');
             const btnAdd = document.getElementById('btnAddSpot');
             const chkAll = document.getElementById('chkRequiredAll'); // ヘッダの一括チェック
+
+            const btnSubmit = document.getElementById("btnSubmit");
+            const titleInput = document.querySelector('input[name="Input.EventTitle"]');
+            const fromInput = document.querySelector('input[name="Input.ValidFrom"]');
+            const toInput   = document.querySelector('input[name="Input.ValidTo"]');
 
             // 行内の「必須」チェック一覧
             function getRowChecks() {
@@ -200,12 +205,61 @@
                 reindex();
             }
 
+            function isValid() {
+                // 1. タイトル
+                if (!titleInput.value.trim()) return false;
+
+                // 2. 日時
+                if (!fromInput.value || !toInput.value) return false;
+                if (new Date(fromInput.value) >= new Date(toInput.value)) return false;
+
+                // 3. 掲示場所
+                const rows = tbody.querySelectorAll("tr.spot-row");
+                if (rows.length === 0) return false;
+
+                // ★ 追加：必須が1件以上
+                @* const requiredChecks = tbody.querySelectorAll('tr.spot-row input.form-check-input[type="checkbox"]');
+                if (!Array.from(requiredChecks).some(c => c.checked)) return false; *@
+
+                const names = [];
+                for (const row of rows) {
+                    const input = row.querySelector('input.form-control');
+                    const name = input.value.trim();
+                    if (!name) return false;
+                    names.push(name.toLowerCase());
+                }
+
+                // 4. 重複チェック
+                const unique = new Set(names);
+                if (unique.size !== names.length) return false;
+
+                return true;
+            }
+
+
+            function refresh() {
+                btnSubmit.disabled = !isValid();
+            }
+
+            // ---- イベント登録 ----
+            document.addEventListener("input", refresh);
+            document.addEventListener("change", refresh);
+
+            // 掲示場所の追加・削除後も評価
+            const observer = new MutationObserver(refresh);
+            observer.observe(tbody, { childList: true, subtree: true });
+
+            // 初期評価
+            refresh();
+
+
             // --- イベント: ヘッダチェック → 全行ON/OFF ---
             if (chkAll) {
                 chkAll.addEventListener('change', () => {
                     const isOn = chkAll.checked;
                     getRowChecks().forEach(c => c.checked = isOn);
                     // ここでsyncHeaderCheckbox()は不要（chkAll自身がすでにその状態）
+                    refresh(); // ★追加
                 });
             }
 

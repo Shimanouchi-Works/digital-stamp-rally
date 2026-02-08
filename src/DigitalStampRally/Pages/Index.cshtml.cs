@@ -68,11 +68,11 @@ public class IndexModel : PageModel
                 return Page();
             }
 
-            // 初期リリース想定：1MB制限（必要なら後で調整）
-            const long maxBytes = 1 * 1024 * 1024;
+            // 初期リリース想定：10MB制限（必要なら後で調整）
+            const long maxBytes = 10 * 1024 * 1024;
             if (projectFile.Length > maxBytes)
             {
-                ErrorMessage = "ファイルサイズが大きすぎます（最大 1MB）。";
+                ErrorMessage = "ファイルサイズが大きすぎます（最大 10MB）。";
                 await OnGetAsync();
                 return Page();
             }
