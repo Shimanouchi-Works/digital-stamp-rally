@@ -1,0 +1,587 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "デジタルスタンプラリー｜無料・登録不要で数分作成";
+    // _Layout.cshtml 側で Bootstrap 5 を読み込んでいる前提です。
+    // CTAリンク先はあとで実際のページに合わせて変更してください（下に「TODO」コメントあり）。
+}
+
+<style>
+    /* === LP専用の軽い装飾（Bootstrap前提） === */
+    :root{
+        --lp-grad-1: rgba(13,110,253,.10);
+        --lp-grad-2: rgba(32,201,151,.10);
+    }
+    .lp-hero{
+        background: radial-gradient(1200px 500px at 20% 10%, var(--lp-grad-1), transparent 60%),
+                    radial-gradient(900px 400px at 80% 0%, var(--lp-grad-2), transparent 55%),
+                    linear-gradient(180deg, rgba(248,249,250,1), rgba(255,255,255,1));
+        border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .lp-pill{
+        border: 1px solid rgba(0,0,0,.08);
+        background: rgba(255,255,255,.75);
+        backdrop-filter: blur(6px);
+    }
+    .lp-section{
+        padding: 3.25rem 0;
+    }
+    .lp-section-title{
+        letter-spacing: .02em;
+    }
+    .lp-muted{
+        color: rgba(33,37,41,.70);
+    }
+    .lp-shadow-soft{
+        box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+    .lp-card{
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 1rem;
+    }
+    .lp-step{
+        border-left: 4px solid rgba(13,110,253,.35);
+        padding-left: 1rem;
+    }
+    .lp-kicker{
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-size: .8rem;
+    }
+    .lp-cta-sticky{
+        position: sticky;
+        bottom: 0;
+        z-index: 1020;
+        background: rgba(255,255,255,.92);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(0,0,0,.08);
+    }
+</style>
+
+<!-- =========================
+    HERO
+========================= -->
+<section class="lp-hero py-5">
+    <div class="container py-3">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-7">
+
+                <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 lp-pill mb-3">
+                    <span class="badge text-bg-primary">無料</span>
+                    <span class="badge text-bg-success">登録不要</span>
+                    <span class="badge text-bg-dark">小規模イベント向き</span>
+                    <span class="small lp-muted">※スマホでQRを読むだけ</span>
+                </div>
+
+                <p class="lp-kicker text-primary mb-2">Digital Stamp Rally</p>
+
+                <h1 class="display-5 fw-bold lh-sm mb-3">
+                    スタンプラリー、<span class="text-primary">数分</span>で作れます。
+                </h1>
+
+                <p class="lead lp-muted mb-4">
+                    何度でも無料・アカウント登録不要。<br class="d-none d-md-inline" />
+                    地域のお祭り、商店街、PTA、学園祭などの<strong>小規模イベント</strong>にちょうどいい
+                    デジタルスタンプラリー作成ツールです。
+                </p>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <!-- TODO: 実際の作成開始ページに変更 -->
+                    <a class="btn btn-primary btn-lg" href="/App/CreateNew">
+                        今すぐ無料で作る（登録なし）
+                    </a>
+                    <a class="btn btn-outline-secondary btn-lg" href="#howto">
+                        使い方を見る
+                    </a>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 mt-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        <span class="small">参加者はインストール不要</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        <span class="small">掲示用QRをPDF出力</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        <span class="small">当日運用がラク</span>
+                    </div>
+                </div>
+
+                <p class="small text-secondary mt-3 mb-0">
+                    ※通信が必要です（会場の電波状況をご確認ください）
+                </p>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="lp-card bg-white p-3 lp-shadow-soft">
+                    <div class="ratio ratio-16x9 rounded-3 overflow-hidden bg-light">
+                        <!-- TODO: スクショ画像に差し替え（wwwroot/images/lp/hero.png など） -->
+                        <img src="/images/lp/hero-placeholder.png" alt="作成画面イメージ" class="w-100 h-100" style="object-fit:cover;">
+                    </div>
+                    <div class="mt-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="small text-secondary">例：掲示用QR／参加者画面</span>
+                            <span class="badge rounded-pill text-bg-light border">スクショ差し替えOK</span>
+                        </div>
+                        <div class="mt-2 small lp-muted">
+                            ここに「作成画面」「掲示PDF」「読み取り画面」のスクショを置くと、信頼が一気に上がります。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex flex-wrap gap-2">
+                    <span class="badge text-bg-light border">所要時間：目安 3分</span>
+                    <span class="badge text-bg-light border">必要：スマホ + 印刷（コンビニ印刷でもOK）</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    PAIN -> SOLUTION
+========================= -->
+<section class="lp-section">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <h2 class="h3 fw-bold lp-section-title mb-3">
+                    よくある悩み、<span class="text-primary">これで解決</span>します
+                </h2>
+                <p class="lp-muted mb-0">
+                    小規模イベントほど「準備の手間」「当日運用」「参加者のハードル」がネックになりがち。
+                    だから、余計な機能を足さずに“必要なところだけ”に絞りました。
+                </p>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="lp-card p-3 h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge text-bg-danger">悩み</span>
+                                <strong>紙の台紙が面倒</strong>
+                            </div>
+                            <p class="mb-0 lp-muted small">
+                                参加者の紛失、配布、回収…地味に大変。
+                            </p>
+                            <hr class="my-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge text-bg-success">解決</span>
+                                <span class="small">QRを読むだけで押印</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="lp-card p-3 h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge text-bg-danger">悩み</span>
+                                <strong>準備時間がない</strong>
+                            </div>
+                            <p class="mb-0 lp-muted small">
+                                当日までバタバタ。ツール学習に時間を使えない。
+                            </p>
+                            <hr class="my-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge text-bg-success">解決</span>
+                                <span class="small">入力→QR/PDF出力まで一直線</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="lp-card p-3 h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge text-bg-danger">悩み</span>
+                                <strong>登録があると参加者が減る</strong>
+                            </div>
+                            <p class="mb-0 lp-muted small">
+                                メール登録やアプリDLで離脱が起きやすい。
+                            </p>
+                            <hr class="my-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge text-bg-success">解決</span>
+                                <span class="small">アカウント登録不要</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="lp-card p-3 h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge text-bg-danger">悩み</span>
+                                <strong>予算がない</strong>
+                            </div>
+                            <p class="mb-0 lp-muted small">
+                                まずは試したい。費用稟議が通らない。
+                            </p>
+                            <hr class="my-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge text-bg-success">解決</span>
+                                <span class="small">何度でも無料で使える</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    FEATURES (4 pillars)
+========================= -->
+<section class="lp-section bg-light" id="features">
+    <div class="container">
+        <div class="text-center mb-4">
+            <p class="lp-kicker text-primary mb-2">Features</p>
+            <h2 class="h3 fw-bold lp-section-title mb-2">伝えたいポイントは、この4つ</h2>
+            <p class="lp-muted mb-0">「無料」「登録不要」「小規模向き」「すぐ作れる」— 迷わず使える設計です。</p>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 h-100 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge text-bg-primary">無料</span>
+                        <span class="small text-secondary">何度でも</span>
+                    </div>
+                    <h3 class="h5 fw-bold mb-2">何度でも無料</h3>
+                    <p class="small lp-muted mb-0">
+                        イベントの作成回数に縛られず、気軽に試せます。<br />
+                        <span class="text-secondary">※将来変更の可能性がある場合は規約に注記</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 h-100 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge text-bg-success">登録不要</span>
+                        <span class="small text-secondary">参加者も</span>
+                    </div>
+                    <h3 class="h5 fw-bold mb-2">アカウント登録不要</h3>
+                    <p class="small lp-muted mb-0">
+                        メール登録やパスワード管理なし。参加者はスマホでQRを読むだけ。
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 h-100 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge text-bg-dark">小規模向け</span>
+                        <span class="small text-secondary">少人数運営</span>
+                    </div>
+                    <h3 class="h5 fw-bold mb-2">小規模イベントに最適</h3>
+                    <p class="small lp-muted mb-0">
+                        10〜200人規模でも回しやすい導線。余計な機能で迷わせません。
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 h-100 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge text-bg-warning">簡単</span>
+                        <span class="small text-secondary">数分で</span>
+                    </div>
+                    <h3 class="h5 fw-bold mb-2">お手軽・数分で作成完了</h3>
+                    <p class="small lp-muted mb-0">
+                        入力 → QR / PDF 出力まで一直線。初見でも迷いにくい画面設計。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <!-- TODO: 実際の作成開始ページに変更 -->
+            <a class="btn btn-primary btn-lg" href="/App/CreateNew">今すぐ無料で作る（登録なし）</a>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    HOW TO (3 steps)
+========================= -->
+<section class="lp-section" id="howto">
+    <div class="container">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-6">
+                <p class="lp-kicker text-primary mb-2">How it works</p>
+                <h2 class="h3 fw-bold lp-section-title mb-3">使い方は、たった3ステップ</h2>
+
+                <div class="lp-step mb-3">
+                    <h3 class="h5 fw-bold mb-1">Step 1：イベント情報を入力</h3>
+                    <p class="mb-0 lp-muted">タイトル、期限、スポット（掲示場所）などを入力します。</p>
+                </div>
+
+                <div class="lp-step mb-3">
+                    <h3 class="h5 fw-bold mb-1">Step 2：掲示用QRコードをPDF出力</h3>
+                    <p class="mb-0 lp-muted">会場に貼る用のPDFを作成して印刷（コンビニ印刷もOK）。</p>
+                </div>
+
+                <div class="lp-step">
+                    <h3 class="h5 fw-bold mb-1">Step 3：会場に貼る → 参加者が読み取る</h3>
+                    <p class="mb-0 lp-muted">参加者はスマホでQRを読み取るだけ。スタンプが貯まります。</p>
+                </div>
+
+                <div class="mt-4 d-flex flex-wrap gap-2">
+                    <span class="badge text-bg-light border">所要時間：目安 3分</span>
+                    <span class="badge text-bg-light border">参加者：登録不要</span>
+                    <span class="badge text-bg-light border">インストール不要</span>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="lp-card p-3 bg-white lp-shadow-soft">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <strong>掲示用QRコード（PDF）例</strong>
+                                <span class="badge text-bg-light border">差し替え</span>
+                            </div>
+                            <div class="ratio ratio-4x3 rounded-3 overflow-hidden bg-light">
+                                <!-- TODO: PDFサンプル画像に差し替え -->
+                                <img src="/images/lp/pdf-sample-placeholder.png" alt="掲示用PDFサンプル" class="w-100 h-100" style="object-fit:cover;">
+                            </div>
+                            <p class="small lp-muted mt-2 mb-0">
+                                ※ここに「掲示物がどんな見た目か」が分かる画像を置くと安心感が上がります。
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="lp-card p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <strong>参加者の操作</strong>
+                                <span class="small text-secondary">スマホでQRを読むだけ</span>
+                            </div>
+                            <hr class="my-3">
+                            <ul class="mb-0 small lp-muted">
+                                <li>スマホのカメラでQRを読み取る</li>
+                                <li>画面の案内に従ってスタンプ獲得</li>
+                                <li>指定数集めたら「ゴール」</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    USE CASES
+========================= -->
+<section class="lp-section bg-light" id="usecases">
+    <div class="container">
+        <div class="text-center mb-4">
+            <p class="lp-kicker text-primary mb-2">Use cases</p>
+            <h2 class="h3 fw-bold lp-section-title mb-2">こんなイベントに向いています</h2>
+            <p class="lp-muted mb-0">“ちょうど良い規模感”を想定して作っています。</p>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 bg-white h-100">
+                    <h3 class="h5 fw-bold">商店街スタンプラリー</h3>
+                    <p class="small lp-muted mb-0">5〜20店舗。回遊促進に。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 bg-white h-100">
+                    <h3 class="h5 fw-bold">学園祭・文化祭</h3>
+                    <p class="small lp-muted mb-0">展示・模擬店を巡るチェックポイントに。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 bg-white h-100">
+                    <h3 class="h5 fw-bold">地域のお祭り</h3>
+                    <p class="small lp-muted mb-0">会場内を回って景品交換、抽選など。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="lp-card p-3 bg-white h-100">
+                    <h3 class="h5 fw-bold">親子ウォークラリー</h3>
+                    <p class="small lp-muted mb-0">公園・施設内の数地点チェックに。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <!-- TODO: 実際の作成開始ページに変更 -->
+            <a class="btn btn-primary btn-lg" href="/App/CreateNew">無料で作ってみる</a>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    FAQ (Accordion)
+========================= -->
+<section class="lp-section" id="faq">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <div class="text-center mb-4">
+                    <p class="lp-kicker text-primary mb-2">FAQ</p>
+                    <h2 class="h3 fw-bold lp-section-title mb-2">よくある質問</h2>
+                    <p class="lp-muted mb-0">不安になりやすいポイントは先に潰しておきます。</p>
+                </div>
+
+                <div class="accordion lp-card bg-white" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="q1">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#a1" aria-expanded="true" aria-controls="a1">
+                                本当に無料ですか？なぜ無料なんですか？
+                            </button>
+                        </h3>
+                        <div id="a1" class="accordion-collapse collapse show" aria-labelledby="q1" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body lp-muted">
+                                はい、現時点では無料でご利用いただけます。まずは多くの方に使っていただき、改善を重ねるため無料で提供しています。
+                                <br />
+                                <span class="small text-secondary">※将来的に提供形態を変更する可能性がある場合は、利用規約に明記してください。</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="q2">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a2" aria-expanded="false" aria-controls="a2">
+                                参加者はアプリのインストールや登録が必要ですか？
+                            </button>
+                        </h3>
+                        <div id="a2" class="accordion-collapse collapse" aria-labelledby="q2" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body lp-muted">
+                                不要です。参加者はスマホでQRコードを読み取り、画面の案内に沿って操作するだけです。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="q3">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a3" aria-expanded="false" aria-controls="a3">
+                                通信できない会場でも使えますか？
+                            </button>
+                        </h3>
+                        <div id="a3" class="accordion-collapse collapse" aria-labelledby="q3" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body lp-muted">
+                                本サービスは通信が必要です。屋外・地下・建物内など、電波状況をご確認ください。
+                                必要に応じて、Wi-Fiの用意や電波の通りやすい掲示位置の調整をご検討ください。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="q4">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a4" aria-expanded="false" aria-controls="a4">
+                                QRコードの「すり替え」などのリスクはありますか？
+                            </button>
+                        </h3>
+                        <div id="a4" class="accordion-collapse collapse" aria-labelledby="q4" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body lp-muted">
+                                リスクはゼロではありません。掲示物の管理（見回り・貼付場所の工夫・注意書き等）は主催者さまでお願いいたします。
+                                詳細は利用規約にてご案内します。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="q5">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a5" aria-expanded="false" aria-controls="a5">
+                                個人情報は取得しますか？
+                            </button>
+                        </h3>
+                        <div id="a5" class="accordion-collapse collapse" aria-labelledby="q5" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body lp-muted">
+                                取得する情報は最小限にします（設計に合わせて調整してください）。
+                                取得する場合も、目的・範囲をプライバシーポリシーに明記します。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <!-- TODO: 問い合わせページに変更 -->
+                    <a class="btn btn-outline-secondary" href="/Contact">お問い合わせ</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    FINAL CTA
+========================= -->
+<section class="lp-section bg-light" id="start">
+    <div class="container">
+        <div class="lp-card p-4 p-md-5 bg-white lp-shadow-soft">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-8">
+                    <h2 class="h3 fw-bold mb-2">まずは1回、作ってみるのが一番早いです</h2>
+                    <p class="lp-muted mb-0">
+                        登録なし・無料で、すぐに掲示用QR（PDF）まで作れます。<br class="d-none d-md-inline" />
+                        小規模イベントの“準備の手間”を軽くしませんか？
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end">
+                    <!-- TODO: 実際の作成開始ページに変更 -->
+                    <a class="btn btn-primary btn-lg w-100 w-lg-auto" href="/App/CreateNew">
+                        今すぐ無料で作る（登録なし）
+                    </a>
+                    <div class="small text-secondary mt-2">
+                        使い方：入力 → PDF出力 → 掲示
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================
+    FOOTER
+========================= -->
+<footer class="py-4">
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+            <div>
+                <div class="fw-bold">Digital Stamp Rally</div>
+                <div class="small text-secondary">
+                    小規模イベント向け・無料・登録不要のデジタルスタンプラリー作成ツール
+                </div>
+            </div>
+
+            <div class="small">
+                <div class="d-flex flex-wrap gap-3">
+                    <!-- TODO: 実際のページに変更 -->
+                    <a class="text-decoration-none" href="/Terms">利用規約</a>
+                    <a class="text-decoration-none" href="/Privacy">プライバシーポリシー</a>
+                    <a class="text-decoration-none" href="/Contact">お問い合わせ</a>
+                </div>
+                <div class="text-secondary mt-2">© @DateTime.Now.Year Digital Stamp Rally</div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- =========================
+    OPTIONAL: Mobile Sticky CTA（スマホで押しやすく）
+========================= -->
+<div class="lp-cta-sticky d-lg-none">
+    <div class="container py-2">
+        <div class="d-flex gap-2">
+            <!-- TODO: 実際の作成開始ページに変更 -->
+            <a class="btn btn-primary w-100" href="/App/CreateNew">無料で作る</a>
+            <a class="btn btn-outline-secondary" href="#faq">FAQ</a>
+        </div>
+    </div>
+</div>
+
+@* もしBootstrap Iconsを使っていないなら、上の <i class="bi ..."> は削除してOKです。
+   使う場合は _Layout.cshtml で Bootstrap Icons を読み込んでください。
+   例: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"> *@

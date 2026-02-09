@@ -47,7 +47,7 @@ public class CreateNewModel : PageModel
             if (Input.ValidTo == default) Input.ValidTo = now.AddHours(6);
 
             string toDateTime(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm");
-            var validMonths = _config["AppConfig/EventValidMonth"] ?? "3";
+            var validMonths = _config["AppConfig:EventValidMonth"] ?? "3";
             var validFromMin = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0);
             var validFromMax = validFromMin.AddMonths(int.Parse(validMonths)).AddMinutes(-1);
             Input.ValidFromMin = toDateTime(validFromMin);

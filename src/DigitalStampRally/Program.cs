@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // --------------------
 //
 builder.Services.AddMemoryCache();
+builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("Mail"));
 builder.Services.AddSingleton<IProjectDraftStore, MemoryProjectDraftStore>();
 // builder.Services.AddSingleton<IProjectStore, FileProjectStore>();
 // builder.Services.AddSingleton<IStampLogStore, FileStampLogStore>();
@@ -21,6 +22,7 @@ builder.Services.AddSingleton<IProjectDraftStore, MemoryProjectDraftStore>();
 // builder.Services.AddSingleton<IGoalStore, FileGoalStore>();
 builder.Services.AddScoped<DbEventService>();
 builder.Services.AddScoped<DbStampService>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 // Razor Pages
 builder.Services.AddRazorPages(options =>

@@ -6,12 +6,12 @@ using DigitalStampRally.Database;
 
 namespace DigitalStampRally.Pages;
 
-public class IndexModel : PageModel
+public class AppIndexModel : PageModel
 {
     private readonly IProjectDraftStore _draftStore;
     private readonly DigitalStampRallyContext _db;
 
-    public IndexModel(IProjectDraftStore draftStore, DigitalStampRallyContext db)
+    public AppIndexModel(IProjectDraftStore draftStore, DigitalStampRallyContext db)
     {
         _draftStore = draftStore;
         _db = db;

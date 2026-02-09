@@ -1,0 +1,75 @@
+@page
+@model ContactModel
+@{
+    ViewData["Title"] = "お問い合わせ";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="mb-4">
+                <h1 class="h3 fw-bold">お問い合わせ</h1>
+                <p class="text-secondary mb-0">
+                    送信後、確認メールをお送りします（通信状況により数分かかる場合があります）。
+                </p>
+            </div>
+
+            @if (TempData["Success"] is string success && !string.IsNullOrWhiteSpace(success))
+            {
+                <div class="alert alert-success">@success</div>
+            }
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">氏名 <span class="text-danger">*</span></label>
+                                <input asp-for="Input.Name" class="form-control" />
+                                <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">団体名</label>
+                                <input asp-for="Input.Organization" class="form-control" />
+                                <span asp-validation-for="Input.Organization" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">メールアドレス <span class="text-danger">*</span></label>
+                                <input asp-for="Input.Email" class="form-control" />
+                                <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">問い合わせ内容 <span class="text-danger">*</span></label>
+                                <textarea asp-for="Input.Message" class="form-control" rows="6"></textarea>
+                                <span asp-validation-for="Input.Message" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 d-grid d-md-flex gap-2 justify-content-md-end mt-2">
+                                <a class="btn btn-outline-secondary" href="/">戻る</a>
+                                <button type="submit" class="btn btn-primary">
+                                    送信する
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+            <p class="text-secondary small mt-3">
+                ※返信は入力いただいたメールアドレス宛にお送りします。
+            </p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
