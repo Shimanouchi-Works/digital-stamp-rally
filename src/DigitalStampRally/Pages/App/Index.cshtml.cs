@@ -110,7 +110,7 @@ public class IndexModel : PageModel
             // サーバー側に短時間だけ保持して、CreateNewへトークンで渡す
             var token = _draftStore.Save(json);
 
-            return Redirect($"/CreateNew?load={Uri.EscapeDataString(token)}");
+            return Redirect($"/App/CreateNew?load={Uri.EscapeDataString(token)}");
         }
         catch (Exception ex)
         {

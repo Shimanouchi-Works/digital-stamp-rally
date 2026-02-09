@@ -21,7 +21,7 @@
         </div>
 
         <div class="mt-3">
-            <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+            <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
         </div>
 
         return;
@@ -74,8 +74,16 @@
         </div>
     </div>
 
-    <div class="mt-3 d-flex gap-2">
-        <a class="btn btn-outline-secondary" href="/Index">ホームへ</a>
+    @* <div class="mt-3 d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
+    </div> *@
+    <div class="mt-3 d-flex flex-column gap-2">
+        <button class="btn btn-outline-secondary" onclick="window.close();">
+            この画面を閉じる
+        </button>
+        <div class="small text-muted text-center">
+            ※ このボタンで閉じない場合は、ブラウザの「×」でタブを閉じてください
+        </div>
     </div>
 </div>
 

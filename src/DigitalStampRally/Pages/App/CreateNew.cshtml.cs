@@ -42,8 +42,18 @@ public class CreateNewModel : PageModel
         try
         {
             // デフォルト値
-            if (Input.ValidFrom == default) Input.ValidFrom = DateTime.Now.AddMinutes(5);
-            if (Input.ValidTo == default) Input.ValidTo = DateTime.Now.AddHours(6);
+            var now = DateTime.Now;
+            if (Input.ValidFrom == default) Input.ValidFrom = now.AddMinutes(5);
+            if (Input.ValidTo == default) Input.ValidTo = now.AddHours(6);
+
+            string toDateTime(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm");
+            var validMonths = _config["AppConfig/EventValidMonth"] ?? "3";
+            var validFromMin = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0);
+            var validFromMax = validFromMin.AddMonths(int.Parse(validMonths)).AddMinutes(-1);
+            Input.ValidFromMin = toDateTime(validFromMin);
+            Input.ValidFromMax = toDateTime(validFromMax);
+            Input.ValidToMin = toDateTime(validFromMin);
+            Input.ValidToMax = toDateTime(validFromMax);
 
             // loadトークンがあればドラフト復元
             if (!string.IsNullOrWhiteSpace(load))
@@ -525,11 +535,18 @@ public class CreateNewModel : PageModel
         [Required, MaxLength(80)]
         public string EventTitle { get; set; } = "";
 
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-ddTHH:mm}", ApplyFormatInEditMode = true)]
         [Required]
         public DateTime ValidFrom { get; set; }
 
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-ddTHH:mm}", ApplyFormatInEditMode = true)]
         [Required]
         public DateTime ValidTo { get; set; }
+
+        public string ValidFromMin = "";
+        public string ValidFromMax = "";
+        public string ValidToMin = "";
+        public string ValidToMax = "";
 
         public IFormFile? EventImageFile { get; set; }
 
