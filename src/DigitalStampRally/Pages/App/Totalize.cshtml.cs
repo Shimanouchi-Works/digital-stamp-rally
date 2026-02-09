@@ -159,12 +159,32 @@ public class TotalizeModel : PageModel
                 .ToDictionaryAsync(x => x.SpotId, x => x.Count);
 
             // 毎時（spot別）
+            // var stampHourRows = await stamps
+            //     .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
+            //     .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
+            //     .OrderBy(x => x.EventSpotsId)
+            //     .ThenBy(x => x.Hour)
+            //     .ToListAsync();
             var stampHourRows = await stamps
-                .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
-                .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
+                .Where(x => x.StampedAt != null)
+                .GroupBy(x => new
+                {
+                    x.EventSpotsId,
+                    Y = x.StampedAt!.Value.Year,
+                    M = x.StampedAt!.Value.Month,
+                    D = x.StampedAt!.Value.Day,
+                    H = x.StampedAt!.Value.Hour
+                })
+                .Select(g => new
+                {
+                    g.Key.EventSpotsId,
+                    Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+                    Count = g.Count()
+                })
                 .OrderBy(x => x.EventSpotsId)
                 .ThenBy(x => x.Hour)
                 .ToListAsync();
+
 
             HourlyBySpot = stampHourRows
                 .GroupBy(x => x.EventSpotsId)
@@ -179,11 +199,28 @@ public class TotalizeModel : PageModel
 
             GoalTotal = await goals.CountAsync();
 
+            // var goalHourRows = await goals
+            //     .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
+            //     .Select(g => new { Hour = g.Key, Count = g.Count() })
+            //     .OrderBy(x => x.Hour)
+            //     .ToListAsync();
             var goalHourRows = await goals
-                .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
-                .Select(g => new { Hour = g.Key, Count = g.Count() })
+                .Where(x => x.GoaledAt != null)
+                .GroupBy(x => new
+                {
+                    Y = x.GoaledAt!.Value.Year,
+                    M = x.GoaledAt!.Value.Month,
+                    D = x.GoaledAt!.Value.Day,
+                    H = x.GoaledAt!.Value.Hour
+                })
+                .Select(g => new
+                {
+                    Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+                    Count = g.Count()
+                })
                 .OrderBy(x => x.Hour)
                 .ToListAsync();
+
 
             GoalsByHour = goalHourRows
                 .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
