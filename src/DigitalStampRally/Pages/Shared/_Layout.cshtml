@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - DigitalStampRally</title>
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/DigitalStampRally.styles.css" asp-append-version="true" />
@@ -12,15 +17,34 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/App/Index">
+                <a class="navbar-brand d-flex align-items-center gap-2"
+                asp-area=""
+                asp-page="/App/Index">
+
+                    <!-- アイコン（上下中央） -->
                     <img src="/img/digital-stamp-rally-icon.svg"
-                        alt="DigitalStampRally"
-                        width="32" height="32">
+                        alt="Qみっけ"
+                        width="32"
+                        height="32">
+
+                    <!-- 文字ブロック（下揃い） -->
+                    <div class="d-flex align-items-end gap-2 logo-text-wrap">
+
+                        <!-- ロゴ -->
+                        <span class="logo-text">
+                            <span class="logo-q">Q</span>みっけ
+                        </span>
+
+                        <!-- サブロゴ -->
+                        <span class="logo-sub">
+                            無料QRスタンプラリー
+                        </span>
+                    </div>
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                @* <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
-                </button>
+                </button> *@
                 @* <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
@@ -42,7 +66,7 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2026 - DigitalStampRally - <a asp-area="" asp-page="/Privacy">Privacy</a>
+            @* &copy; 2026 - DigitalStampRally - <a asp-area="" asp-page="/Privacy">Privacy</a> *@
         </div>
     </footer>
 

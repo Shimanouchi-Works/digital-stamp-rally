@@ -125,7 +125,7 @@
                 </div>
 
                 <div class="form-text">
-                    ※ 最低1件必要です。掲示場所名は空欄や、他の掲示場所名と重複はできません。
+                    ※ 最低1件必要です。掲示場所名は空欄や、他の掲示場所名との重複はできません。
                 </div>
             </div>
         </div>
@@ -134,7 +134,7 @@
             <button class="btn btn-primary" type="submit" id="btnSubmit" disabled>
                 作成する
             </button>
-            <a class="btn btn-outline-secondary" href="/App/Index">戻る</a>
+            <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
         </div>
     </form>
 </div>
@@ -144,6 +144,8 @@
 
     <script>
         (function () {
+            const MAX_SPOTS = @Model.MaxSpotsForUi; // C#側の定義を反映
+
             const tbody = document.getElementById('spotTbody');
             const btnAdd = document.getElementById('btnAddSpot');
             const chkAll = document.getElementById('chkRequiredAll'); // ヘッダの一括チェック
@@ -194,8 +196,27 @@
                 chkAll.checked = Array.from(checks).every(c => c.checked);
             }
 
+            function updateButtonsState() {
+                const rows = tbody.querySelectorAll('tr.spot-row');
+                const count = rows.length;
+
+                // 1件しかない場合：削除ボタンを無効化
+                rows.forEach(row => {
+                    const removeBtn = row.querySelector('.btnRemoveSpot');
+                    if (removeBtn) removeBtn.disabled = (count <= 1);
+                });
+
+                // 最大件数に達した場合：追加ボタンを無効化
+                if (btnAdd) {
+                    btnAdd.disabled = (count >= MAX_SPOTS);
+                }
+            }
+
             // 行を1つ追加
             function addRow(defaultName = "") {
+                const currentCount = tbody.querySelectorAll('tr.spot-row').length;
+                if (currentCount >= MAX_SPOTS) return; // ★追加（上限なら何もしない）
+
                 const tr = document.createElement('tr');
                 tr.className = 'spot-row';
 
@@ -220,6 +241,7 @@
                 tbody.appendChild(tr);
 
                 reindex();
+                refresh(); // ★追加（即反映）
             }
 
             function isValid() {
@@ -256,6 +278,7 @@
 
             function refresh() {
                 btnSubmit.disabled = !isValid();
+                updateButtonsState();
             }
 
             // ---- イベント登録 ----
@@ -293,6 +316,7 @@
 
                 btn.closest('tr').remove();
                 reindex();
+                refresh(); // ★追加
             });
 
             // --- イベント: 行の必須チェックが変わったらヘッダ同期 ---

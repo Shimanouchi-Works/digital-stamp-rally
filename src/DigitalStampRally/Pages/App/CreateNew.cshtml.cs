@@ -34,6 +34,7 @@ public class CreateNewModel : PageModel
 
     [BindProperty]
     public CreateNewInputModel Input { get; set; } = new();
+    public int MaxSpotsForUi { get; set; }
 
     public string? ErrorMessage { get; set; }
 
@@ -54,6 +55,9 @@ public class CreateNewModel : PageModel
             Input.ValidFromMax = toDateTime(validFromMax);
             Input.ValidToMin = toDateTime(validFromMin);
             Input.ValidToMax = toDateTime(validFromMax);
+
+            var maxSpots = _config["AppConfig:MaxSpots"] ?? "30";
+            MaxSpotsForUi = int.Parse(maxSpots);
 
             // loadトークンがあればドラフト復元
             if (!string.IsNullOrWhiteSpace(load))
