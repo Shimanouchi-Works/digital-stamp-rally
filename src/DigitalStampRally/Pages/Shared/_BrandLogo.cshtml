@@ -1,0 +1,27 @@
+@* ブランドロゴ（アイコン + ロゴ + サブロゴ）
+   ヘッダー／フッター／LPなどで共通利用 *@
+
+<a class="navbar-brand d-flex align-items-center gap-2"
+   asp-area=""
+   asp-page="/App/Index">
+
+    <!-- アイコン（上下中央） -->
+    <img src="/img/digital-stamp-rally-icon.svg"
+         alt="Qみっけ"
+         width="32"
+         height="32">
+
+    <!-- 文字ブロック（下揃い） -->
+    <div class="d-flex align-items-end gap-2 logo-text-wrap">
+
+        <!-- ロゴ -->
+        <span class="logo-text">
+            <span class="logo-q">Q</span>みっけ
+        </span>
+
+        <!-- サブロゴ -->
+        <span class="logo-sub">
+            無料QRスタンプラリー
+        </span>
+    </div>
+</a>
