@@ -1,8 +1,14 @@
 ﻿@page
 @model DigitalStampRally.Pages.CreateNewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "新しいスタンプラリーを作成";
 }
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/confirmDate/confirmDate.js"></script>
+
 
 <div class="container py-4">
     <div class="mb-4">
@@ -55,26 +61,38 @@
 
                 <div class="row g-3">
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">QRコード有効期間（開始）</label>
-                        <input
+                        <label class="form-label">QRコード有効期間 <span style="font-size:0.85em;">-開始-</span></label>
+                        @* <input
                             class="form-control"
                             asp-for="Input.ValidFrom"
                             min="@Model.Input.ValidFromMin"
                             max="@Model.Input.ValidFromMax"
                             type="datetime-local"
                             step="300"
+                            required /> *@
+                        <input class="form-control js-dtp"
+                            asp-for="Input.ValidFrom"
+                            type="text"
+                            inputmode="none"
+                            autocomplete="off"
                             required />
                         <span class="text-danger small" asp-validation-for="Input.ValidFrom"></span>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">QRコード有効期間（終了）</label>
-                        <input
+                        <label class="form-label">QRコード有効期間 <span style="font-size:0.85em;">-終了-</span></label>
+                        @* <input
                             class="form-control"
                             asp-for="Input.ValidTo"
                             min="@Model.Input.ValidToMin"
                             max="@Model.Input.ValidToMax"
                             type="datetime-local"
                             step="300"
+                            required /> *@
+                        <input class="form-control js-dtp"
+                            asp-for="Input.ValidTo"
+                            type="text"
+                            inputmode="none"
+                            autocomplete="off"
                             required />
                         <span class="text-danger small" asp-validation-for="Input.ValidTo"></span>
                     </div>
@@ -179,6 +197,99 @@
     <partial name="_ValidationScriptsPartial" />
 
     <script>
+        (function () {
+            document.addEventListener("DOMContentLoaded", () => {
+                const fromMin = @Html.Raw(JsonSerializer.Serialize(Model.Input.ValidFromMin));
+                const fromMax = @Html.Raw(JsonSerializer.Serialize(Model.Input.ValidFromMax));
+                const toMin   = @Html.Raw(JsonSerializer.Serialize(Model.Input.ValidToMin));
+                const toMax   = @Html.Raw(JsonSerializer.Serialize(Model.Input.ValidToMax));
+
+                // flatpickr が読み込まれてなければ何もしない
+                if (!window.flatpickr) return;
+
+                const fromEl = document.querySelector('input[name="Input.ValidFrom"]');
+                const toEl   = document.querySelector('input[name="Input.ValidTo"]');
+
+                if (!fromEl || !toEl) return;
+
+                const ConfirmPlugin = window.confirmDatePlugin || confirmDatePlugin;
+                // ASP.NETのDateTimeバインドに合わせて、送信値を yyyy-MM-ddTHH:mm にする
+                const fpBase = {
+                    locale: flatpickr.l10ns.ja,
+                    enableTime: true,
+                    time_24hr: true,
+                    minuteIncrement: 5,
+                    // サーバー送信用（隠しinputに保持される）
+                    dateFormat: "Y-m-d\\TH:i",
+                    // 表示用
+                    altInput: true,
+                    altFormat: "Y/m/d H:i",
+
+                    allowInput: false,
+                    disableMobile: true,
+
+                    plugins: [
+                        new ConfirmPlugin({
+                            confirmText: "OK",
+                            showAlways: true,   // ← まずはtrueで「確実に出す」
+                            theme: "light"
+                        })
+                    ]
+                };
+
+                // 既にサーバーが value を入れている場合、それを初期表示に使う
+                // 例: 2026-02-11T06:34
+                const initialFrom = fromEl.value || null;
+                const initialTo   = toEl.value || null;
+
+                const fpTo = flatpickr(toEl, {
+                ...fpBase,
+                defaultDate: initialTo,
+                minDate: parseLocal(toMin),
+                maxDate: parseLocal(toMax)
+                });
+
+                const fpFrom = flatpickr(fromEl, {
+                ...fpBase,
+                defaultDate: initialFrom,
+                minDate: parseLocal(fromMin),
+                maxDate: parseLocal(fromMax),
+                onChange: function(selectedDates) {
+                    if (!selectedDates || selectedDates.length === 0) return;
+
+                    const fromDate = selectedDates[0];
+
+                    // (2) 開始が選ばれたら：終了が開始より過去なら、終了=開始に自動補正
+                    const toDate = fpTo.selectedDates && fpTo.selectedDates[0];
+                    if (!toDate || toDate < fromDate) {
+                    fpTo.setDate(fromDate, true); // true = input値更新 + onChange発火
+                    }
+
+                    // 終了の最小値も開始に合わせておく（UI上もミスりにくくなる）
+                    fpTo.set("minDate", fromDate);
+                }
+                });
+
+                // もし初期値がある場合、minDateも合わせておく
+                if (fpFrom.selectedDates && fpFrom.selectedDates[0]) {
+                fpTo.set("minDate", fpFrom.selectedDates[0]);
+                }
+
+                // (3) 開始 > 終了 の場合のエラー表示は、既存の refresh/isValid に統合するのが一番自然。
+                // もし専用の表示場所があるならここで切り替えてOKです。
+            });
+        })();
+
+        function parseLocal(dt) {
+            // dt: "2026-02-11T06:34"
+            if (!dt) return null;
+            // Safari対策： "YYYY-MM-DDTHH:mm" を Date が解釈できない場合があるので分解
+            const [d, t] = dt.split("T");
+            const [y, m, day] = d.split("-").map(Number);
+            const [hh, mm] = t.split(":").map(Number);
+            return new Date(y, m - 1, day, hh, mm, 0);
+        }
+
         (function () {
             const MAX_SPOTS = @Model.MaxSpotsForUi; // C#側の定義を反映
 

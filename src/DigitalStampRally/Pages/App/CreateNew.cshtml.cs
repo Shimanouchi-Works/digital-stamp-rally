@@ -358,7 +358,7 @@ public class CreateNewModel : PageModel
                 _logger.LogInformation("Generating poster PDF for Spot '{SpotName}' with URL: {Url}", spot.SpotName, url);
 
                 var pdf = BuildPosterPdf(project, spot.SpotName, spot.IsRequired, url);
-                AddBytes(zip, $"posters/spot_{SanitizeFileName(spot.SpotName)}.pdf", pdf);
+                AddBytes(zip, $"各掲示場所に掲示するPDF/spot_{SanitizeFileName(spot.SpotName)}.pdf", pdf);
             }
 
             // ゴール用PDF
@@ -375,14 +375,14 @@ public class CreateNewModel : PageModel
                     url: url,
                     eventImage: GetEventImageBytes(project.EventImage)
                 );
-                AddBytes(zip, "goal/goal_qr.pdf", pdf);
+                AddBytes(zip, "主催者が保有するPDF/ゴールした参加者が読むPDF.pdf", pdf);
             }
 
             // 集計画面アクセス用PDF
             {
                 var url = $"{project.Urls.TotalizeBase}?e={project.EventId}&t={project.TotalizeToken}";
                 var pdf = BuildTotalizePdf(project, url);
-                AddBytes(zip, "totalize/totalize_access.pdf", pdf);
+                AddBytes(zip, "主催者が保有するPDF/主催者が集計画面をみるためのPDF.pdf", pdf);
             }
         }
 
@@ -529,6 +529,9 @@ public class CreateNewModel : PageModel
 
         return Document.Create(container =>
         {
+            // =========================
+            // Page 1: QR
+            // =========================
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
@@ -556,6 +559,7 @@ public class CreateNewModel : PageModel
                         {
                             left.Item().Text("用途：ゴール用QR").FontSize(16).SemiBold();
                             left.Item().PaddingTop(6).Text("来場者がゴール時に読み取ります。");
+
                             left.Item().PaddingTop(10)
                                 .Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
                         });
@@ -574,8 +578,58 @@ public class CreateNewModel : PageModel
                     col.Item().Text("・同じ端末（同じブラウザ）で集める必要があります");
                 });
             });
+
+            // =========================
+            // Page 2: Organizer guide
+            // =========================
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(30);
+                page.DefaultTextStyle(x => x.FontSize(12));
+
+                page.Content().Column(col =>
+                {
+                    col.Item().Text("ゴール運用手順（主催者向け）").FontSize(20).SemiBold();
+
+                    col.Item().PaddingTop(8).Text(eventTitle).FontSize(14).FontColor(Colors.Grey.Darken2);
+
+                    col.Item().PaddingTop(14).Text("当日の流れ").FontSize(14).SemiBold();
+
+                    col.Item().PaddingTop(8).Column(list =>
+                    {
+                        void Step(string n, string text)
+                        {
+                            list.Item().Row(r =>
+                            {
+                                r.ConstantItem(22).Text($"{n}.").SemiBold();
+                                r.RelativeItem().Text(text);
+                            });
+                        }
+
+                        Step("1", "参加者が「必須」掲示場所のQRをすべて読み取り、スタンプを集めます。");
+                        Step("2", "参加者を主催者の受付へ案内し、この「ゴールQR」を読み取ってもらいます。");
+                        Step("3", "画面に「ゴール前です」と表示されていることを主催者が確認します。");
+                        Step("4", "参加者本人に「ゴールする」ボタンを押してもらいます（主催者の確認のもと）。");
+                        Step("5", "画面が「ゴール済みです」となったことを主催者が確認し、景品等をお渡しください。");
+
+                    });
+
+                    col.Item().PaddingTop(16).Text("注意").FontSize(14).SemiBold();
+                    col.Item().PaddingTop(6).Text("・ゴールすると以後その端末ではスタンプ読み取りができません。");
+                    col.Item().Text("・同じ端末（同じブラウザ）で集める必要があります。");
+
+                    col.Item().PaddingTop(14).Text("有効期限").FontSize(14).SemiBold();
+                    col.Item().Text($"{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
+
+                    // 任意：PC用URL表示（受付PCで開きたい場合など）
+                    col.Item().PaddingTop(14).Text("ゴール画面URL").FontSize(14).SemiBold();
+                    col.Item().Text(url).FontSize(10).FontColor(Colors.Grey.Darken2);
+                });
+            });
         }).GeneratePdf();
     }
+
 
     private byte[] BuildProjectPackageQmkpj(ProjectDto project)
     {

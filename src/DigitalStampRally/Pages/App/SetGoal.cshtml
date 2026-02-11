@@ -27,7 +27,17 @@
                     <div class="text-muted small">ゴール確認</div>
                     <div class="h5 fw-bold mb-0">この端末の収集状況を確認してゴールします</div>
                 </div>
-                <span id="badge-goaled" class="badge text-bg-success d-none">ゴール済み</span>
+                @* <span id="badge-goaled" class="badge text-bg-success d-none">ゴール済み</span> *@
+                <div id="goal-state"
+                    class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0"
+                    role="alert">
+                    <div class="fw-bold">
+                        状態：<span id="goal-state-text">ゴール前です</span>
+                    </div>
+                    @* <div class="small">
+                        ※ 主催者の確認のもと、参加者に操作してもらってください
+                    </div> *@
+                </div>
             </div>
 
             <hr class="my-3" />
@@ -101,6 +111,9 @@
     const token = @Html.Raw(JsonSerializer.Serialize(Model.Token));
     const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {"123":{name,isRequired}}
     const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds)); // number[]
+
+    const stateText = document.getElementById("goal-state-text");
+    const stateWrap = document.getElementById("goal-state");
 
     const loader = document.getElementById("globalLoading");
 
@@ -216,7 +229,7 @@
 
     const btn = document.getElementById("btn-goal");
     const msg = document.getElementById("goal-message");
-    const badgeGoaled = document.getElementById("badge-goaled");
+    @* const badgeGoaled = document.getElementById("badge-goaled"); *@
     const codeEl = document.getElementById("achievement-code");
     const codeHint = document.getElementById("achievement-hint");
 
@@ -227,9 +240,19 @@
             if(!res.ok) return;
             const data = await res.json();
             if(data.success && data.goaled){
-                badgeGoaled.classList.remove("d-none");
+                @* if (badgeGoaled) {
+                    badgeGoaled.classList.remove("d-none");
+                } *@
                 btn.disabled = true;
                 msg.textContent = "この端末はすでにゴール済みです。";
+
+                // ★追加：状態文言を更新
+                if (stateText) stateText.textContent = "ゴール済みです";
+                if (stateWrap) {
+                    stateWrap.classList.remove("alert-warning");
+                    stateWrap.classList.add("alert-success");
+                }
+
                 if(data.code){
                     codeEl.textContent = formatAchievementCode(data.code);
                     codeHint.textContent = "主催者の集計画面で照会できます。";
@@ -259,8 +282,15 @@
             return;
         }
 
-        badgeGoaled.classList.remove("d-none");
+        @* badgeGoaled.classList.remove("d-none"); *@
         msg.textContent = "ゴールしました。以後スタンプ読み取りはできません。";
+
+        // ★追加：状態文言を更新
+        if (stateText) stateText.textContent = "ゴール済みです";
+        if (stateWrap) {
+            stateWrap.classList.remove("alert-warning");
+            stateWrap.classList.add("alert-success");
+        }
 
         if(data.code){
             codeEl.textContent = formatAchievementCode(data.code);
