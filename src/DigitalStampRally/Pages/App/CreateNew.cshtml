@@ -78,6 +78,9 @@
                             required />
                         <span class="text-danger small" asp-validation-for="Input.ValidTo"></span>
                     </div>
+                    <div id="dateRangeError" class="text-danger small mt-1" style="display:none;">
+                        有効期間（開始）は（終了）より前にしてください。
+                    </div>
                 </div>
 
             </div>
@@ -87,15 +90,17 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <h2 class="h5 fw-bold mb-0">掲示場所</h2>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddSpot">
+                    @* <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddSpot">
                         ＋ 掲示場所を追加
-                    </button>
+                    </button> *@
                 </div>
 
                 <div class="mt-3 small text-muted">
                     @* ゴール達成条件として必須にする掲示場所は、「必須」にチェックしてください。 *@
-                    「必須」にチェックが入っている掲示場所のスタンプを全て集めるとゴール可能になります。<br />
-                    「必須」にチェックが入っていない掲示場所のスタンプは、ゴール条件には含まれませんが、イベント運営上の演出等に利用できます(追加特典・抽選。お楽しみ要素 など)。
+                    <ul>
+                        <li>「必須」にチェックが入っている掲示場所のスタンプを全て集めるとゴール可能になります</li>
+                        <li>「必須」にチェックが入っていない掲示場所のスタンプは、ゴール条件には含まれませんが、イベント運営上の演出等に利用できます(追加特典・抽選。お楽しみ要素 など)</li>
+                    </ul>
                 </div>
 
                 <div class="table-responsive">
@@ -111,7 +116,8 @@
                                     </div>
                                 </th>
                                 <th>掲示場所名</th>
-                                <th style="width:90px;"></th>
+                                <th style="width:90px;">
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="spotTbody">
@@ -144,6 +150,11 @@
                         }
                         </tbody>
                     </table>
+                </div>
+                <div class="d-flex justify-content-center my-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddSpot">
+                        ＋ 掲示場所を追加
+                    </button>
                 </div>
 
                 <div class="form-text">
@@ -179,6 +190,7 @@
             const titleInput = document.querySelector('input[name="Input.EventTitle"]');
             const fromInput = document.querySelector('input[name="Input.ValidFrom"]');
             const toInput   = document.querySelector('input[name="Input.ValidTo"]');
+            const dateRangeError = document.getElementById("dateRangeError");
 
             const input = document.getElementById('eventImageInput');
             const wrap = document.getElementById('eventImagePreviewWrap');
@@ -207,14 +219,16 @@
             if (input) {
                 input.addEventListener('change', () => {
                 const file = input.files && input.files[0];
-                if (!file) return;
 
-                // 画像以外を弾く（念のため）
-                if (!file.type || !file.type.startsWith("image/")) {
-                    alert("画像ファイルを選択してください。");
+                if (!file || !file.type || !file.type.startsWith("image/")) {
+                    //alert("画像ファイルを選択してください。");
                     input.value = "";
+                    wrap.style.display = "none";
+                    img.src = "";
+                    cap.textContent = "";
                     return;
                 }
+
 
                 const url = URL.createObjectURL(file);
                 showPreview(url, `現在のイベント画像 — ${file.name}`);
@@ -342,6 +356,15 @@
 
 
             function refresh() {
+                // 日付エラー表示　<-自動調整するようにしたのでエラー表示はいったんなしに
+                @* const hasFrom = !!fromInput.value;
+                const hasTo = !!toInput.value;
+                const invalidRange = hasFrom && hasTo && (new Date(fromInput.value) > new Date(toInput.value));
+
+                if (dateRangeError) {
+                    dateRangeError.style.display = invalidRange ? "block" : "none";
+                } *@
+
                 btnSubmit.disabled = !isValid();
                 updateButtonsState();
             }
@@ -349,6 +372,26 @@
             // ---- イベント登録 ----
             document.addEventListener("input", refresh);
             document.addEventListener("change", refresh);
+
+            // ---- 期限：開始変更で終了を補正 ----
+            fromInput.addEventListener("change", () => {
+                if (!fromInput.value) return;
+
+                // 終了が空、または開始より過去なら、終了=開始にする
+                if (!toInput.value || new Date(toInput.value) < new Date(fromInput.value)) {
+                    toInput.value = fromInput.value;
+                }
+                refresh();
+            });
+            toInput.addEventListener("change", () => {
+                if (!toInput.value) return;
+
+                // 開始が空、または終了より未来なら、開始=終了にする
+                if (!fromInput.value || new Date(toInput.value) < new Date(fromInput.value)) {
+                    fromInput.value = toInput.value;
+                }
+                refresh();
+            });
 
             // 掲示場所の追加・削除後も評価
             const observer = new MutationObserver(refresh);

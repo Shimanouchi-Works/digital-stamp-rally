@@ -87,6 +87,13 @@
         </div>
     </div>
 </div>
+<div id="globalLoading" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white"
+     style="z-index:1050;">
+    <div class="text-center">
+        <div class="spinner-border text-primary" style="width:3rem;height:3rem;"></div>
+        <div class="mt-3">処理中です…</div>
+    </div>
+</div>
 
 @section Scripts {
 <script>
@@ -97,6 +104,8 @@
     const spotName = @Html.Raw(JsonSerializer.Serialize(Model.SpotName));
     const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds)); // number[]
     const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // { "123": {name,isRequired}, ... } ※キーは文字列化される
+
+    const loader = document.getElementById("globalLoading");
 
     const KEY_VISITOR = "dsr:visitorId";
     const KEY_STAMPS = `dsr:stamps:${eventId}`; // { spotId: iso, ... } ※spotIdはキーなので文字列になる
@@ -216,81 +225,85 @@
     const visitorId = getVisitorId();
 
     (async () => {
-        // 1) ゴール済み判定（先に）
-        const statusRes = await postJson("?handler=GoalStatus", { eventId, visitorId });
-        if(statusRes.ok){
-            const st = await statusRes.json();
-            if(st.success && st.goaled){
+        try{
+            // 1) ゴール済み判定（先に）
+            const statusRes = await postJson("?handler=GoalStatus", { eventId, visitorId });
+            if(statusRes.ok){
+                const st = await statusRes.json();
+                if(st.success && st.goaled){
+                    showBlocked("すでにゴールしているため、追加の読み取りはできません。");
+                    return;
+                }
+            }
+
+            // 2) サーバーで押印を確定（ここがDB版の本体）
+            const stampRes = await postJson("?handler=Stamp", { eventId, spotId, token, visitorId });
+            if(!stampRes.ok){
+                // 通信失敗時：最低限ローカル表示だけ（ただしDB集計は欠ける）
+                const stamps = loadStamps();
+                renderStampList(stamps);
+                document.getElementById("achievement-hint").textContent = "通信に失敗しました。電波状況をご確認ください。";
+                return;
+            }
+
+            const stampData = await stampRes.json();
+            if(!stampData.success){
+                document.getElementById("achievement-hint").textContent = stampData.message || "処理に失敗しました。";
+                return;
+            }
+
+            // result: 0=成功 1=重複 5=ゴール済み
+            if(stampData.result === 5){
                 showBlocked("すでにゴールしているため、追加の読み取りはできません。");
                 return;
             }
-        }
 
-        // 2) サーバーで押印を確定（ここがDB版の本体）
-        const stampRes = await postJson("?handler=Stamp", { eventId, spotId, token, visitorId });
-        if(!stampRes.ok){
-            // 通信失敗時：最低限ローカル表示だけ（ただしDB集計は欠ける）
             const stamps = loadStamps();
+
+            if(stampData.result === 1){
+                document.getElementById("badge-duplicate").classList.remove("d-none");
+            } else {
+                document.getElementById("badge-new").classList.remove("d-none");
+                stamps[String(spotId)] = new Date().toISOString();
+                saveStamps(stamps);
+            }
+
+            // 必須達成数表示
+            const reqCollected = countRequiredCollected(stamps);
+            document.getElementById("required-count").textContent = String(reqCollected);
+
+            // 一覧表示
             renderStampList(stamps);
-            document.getElementById("achievement-hint").textContent = "通信に失敗しました。電波状況をご確認ください。";
-            return;
+
+            // 3) 達成コード（必須が0なら常に達成）
+            const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
+
+            const codeEl = document.getElementById("achievement-code");
+            const hintEl = document.getElementById("achievement-hint");
+            const badgeAch = document.getElementById("badge-achieved");
+
+            if(!achieved){
+                hintEl.textContent = "必須スタンプをすべて集めると表示されます。";
+                return;
+            }
+
+            const res = await postJson("?handler=Achievement", { eventId, visitorId });
+            if(!res.ok){
+                hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。";
+                return;
+            }
+            const data = await res.json();
+            if(!data.success){
+                hintEl.textContent = data.message || "まだ条件を満たしていません。";
+                return;
+            }
+
+            badgeAch.classList.remove("d-none");
+            codeEl.textContent = formatAchievementCode(data.code);
+            hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
+        }finally{
+            loader.remove(); // 完全に削除
         }
-
-        const stampData = await stampRes.json();
-        if(!stampData.success){
-            document.getElementById("achievement-hint").textContent = stampData.message || "処理に失敗しました。";
-            return;
-        }
-
-        // result: 0=成功 1=重複 5=ゴール済み
-        if(stampData.result === 5){
-            showBlocked("すでにゴールしているため、追加の読み取りはできません。");
-            return;
-        }
-
-        const stamps = loadStamps();
-
-        if(stampData.result === 1){
-            document.getElementById("badge-duplicate").classList.remove("d-none");
-        } else {
-            document.getElementById("badge-new").classList.remove("d-none");
-            stamps[String(spotId)] = new Date().toISOString();
-            saveStamps(stamps);
-        }
-
-        // 必須達成数表示
-        const reqCollected = countRequiredCollected(stamps);
-        document.getElementById("required-count").textContent = String(reqCollected);
-
-        // 一覧表示
-        renderStampList(stamps);
-
-        // 3) 達成コード（必須が0なら常に達成）
-        const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
-
-        const codeEl = document.getElementById("achievement-code");
-        const hintEl = document.getElementById("achievement-hint");
-        const badgeAch = document.getElementById("badge-achieved");
-
-        if(!achieved){
-            hintEl.textContent = "必須スタンプをすべて集めると表示されます。";
-            return;
-        }
-
-        const res = await postJson("?handler=Achievement", { eventId, visitorId });
-        if(!res.ok){
-            hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。";
-            return;
-        }
-        const data = await res.json();
-        if(!data.success){
-            hintEl.textContent = data.message || "まだ条件を満たしていません。";
-            return;
-        }
-
-        badgeAch.classList.remove("d-none");
-        codeEl.textContent = formatAchievementCode(data.code);
-        hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
     })().catch(() => {});
 })();
 </script>

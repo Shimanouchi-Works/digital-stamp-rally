@@ -27,11 +27,42 @@
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+
+    <footer class="py-4">
         <div class="container">
-            @* &copy; 2026 - DigitalStampRally - <a asp-area="" asp-page="/Privacy">Privacy</a> *@
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+                <div>
+                    <partial name="_BrandLogo" />
+                    <div class="small text-secondary">
+                        小規模イベント向け・無料・登録不要のデジタルスタンプラリー作成ツール
+                    </div>
+                </div>
+
+                <div class="small">
+                    <div class="d-flex flex-wrap gap-3">
+                        <!-- TODO: 実際のページに変更 -->
+                        <a class="text-decoration-none" href="/Terms">利用規約</a>
+                        <a class="text-decoration-none" href="/Privacy">プライバシーポリシー</a>
+                        <a class="text-decoration-none" target="_blank" href="/Contact">お問い合わせ</a>
+                    </div>
+                    <div class="text-secondary mt-2">© @DateTime.Now.Year @DigitalStampRally.Models.AppConst.AppName</div>
+                </div>
+            </div>
         </div>
     </footer>
+
+
+    @* <footer class="border-top footer text-muted">
+        <div class="container">
+            © @DateTime.Now.Year @DigitalStampRally.Models.AppConst.AppName
+
+            <div class="mt-2">
+                <a asp-page="/Terms">利用規約</a> |
+                <a asp-page="/Privacy">プライバシーポリシー</a> |
+                <a asp-page="/Contact">お問い合わせ</a>
+            </div>
+        </div>
+    </footer> *@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

@@ -79,6 +79,13 @@
         </div>
     </div>
 </div>
+<div id="globalLoading" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white"
+     style="z-index:1050;">
+    <div class="text-center">
+        <div class="spinner-border text-primary" style="width:3rem;height:3rem;"></div>
+        <div class="mt-3">処理中です…</div>
+    </div>
+</div>
 
 @section Scripts {
 <script>
@@ -87,6 +94,8 @@
     const token = @Html.Raw(JsonSerializer.Serialize(Model.Token));
     const spotMap = @Html.Raw(JsonSerializer.Serialize(Model.SpotMap)); // {"123":{name,isRequired}}
     const requiredSpotIds = @Html.Raw(JsonSerializer.Serialize(Model.RequiredSpotIds)); // number[]
+
+    const loader = document.getElementById("globalLoading");
 
     const KEY_VISITOR = "dsr:visitorId";
     const KEY_STAMPS = `dsr:stamps:${eventId}`; // { "123": "iso", ... }
@@ -206,17 +215,21 @@
 
     // ゴール済み確認
     (async () => {
-        const res = await postJson("?handler=Status", { eventId, token, visitorId });
-        if(!res.ok) return;
-        const data = await res.json();
-        if(data.success && data.goaled){
-            badgeGoaled.classList.remove("d-none");
-            btn.disabled = true;
-            msg.textContent = "この端末はすでにゴール済みです。";
-            if(data.code){
-                codeEl.textContent = formatAchievementCode(data.code);
-                codeHint.textContent = "主催者の集計画面で照会できます。";
+        try{
+            const res = await postJson("?handler=Status", { eventId, token, visitorId });
+            if(!res.ok) return;
+            const data = await res.json();
+            if(data.success && data.goaled){
+                badgeGoaled.classList.remove("d-none");
+                btn.disabled = true;
+                msg.textContent = "この端末はすでにゴール済みです。";
+                if(data.code){
+                    codeEl.textContent = formatAchievementCode(data.code);
+                    codeHint.textContent = "主催者の集計画面で照会できます。";
+                }
             }
+        }finally{
+            loader.remove(); // 完全に削除
         }
     })();
 
@@ -243,7 +256,7 @@
         msg.textContent = "ゴールしました。以後スタンプ読み取りはできません。";
 
         if(data.code){
-            codeEl.textContent = data.code;
+            codeEl.textContent = formatAchievementCode(data.code);
             codeHint.textContent = "主催者の集計画面で照会できます。";
         }
     });
