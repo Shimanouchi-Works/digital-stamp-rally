@@ -165,7 +165,26 @@ public class TotalizeModel : PageModel
             //     .OrderBy(x => x.EventSpotsId)
             //     .ThenBy(x => x.Hour)
             //     .ToListAsync();
-            var stampHourRows = await stamps
+            // var stampHourRows = await stamps
+            //     .Where(x => x.StampedAt != null)
+            //     .GroupBy(x => new
+            //     {
+            //         x.EventSpotsId,
+            //         Y = x.StampedAt!.Value.Year,
+            //         M = x.StampedAt!.Value.Month,
+            //         D = x.StampedAt!.Value.Day,
+            //         H = x.StampedAt!.Value.Hour
+            //     })
+            //     .Select(g => new
+            //     {
+            //         g.Key.EventSpotsId,
+            //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+            //         Count = g.Count()
+            //     })
+            //     .OrderBy(x => x.EventSpotsId)
+            //     .ThenBy(x => x.Hour)
+            //     .ToListAsync();
+            var stampHourRowsRaw = await stamps
                 .Where(x => x.StampedAt != null)
                 .GroupBy(x => new
                 {
@@ -178,13 +197,25 @@ public class TotalizeModel : PageModel
                 .Select(g => new
                 {
                     g.Key.EventSpotsId,
-                    Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+                    g.Key.Y,
+                    g.Key.M,
+                    g.Key.D,
+                    g.Key.H,
                     Count = g.Count()
                 })
                 .OrderBy(x => x.EventSpotsId)
-                .ThenBy(x => x.Hour)
+                .ThenBy(x => x.Y)
+                .ThenBy(x => x.M)
+                .ThenBy(x => x.D)
+                .ThenBy(x => x.H)
                 .ToListAsync();
-
+            // ここから先はクライアント側で DateTime を生成
+            var stampHourRows = stampHourRowsRaw.Select(x => new
+            {
+                x.EventSpotsId,
+                Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
+                x.Count
+            }).ToList();
 
             HourlyBySpot = stampHourRows
                 .GroupBy(x => x.EventSpotsId)
@@ -204,7 +235,27 @@ public class TotalizeModel : PageModel
             //     .Select(g => new { Hour = g.Key, Count = g.Count() })
             //     .OrderBy(x => x.Hour)
             //     .ToListAsync();
-            var goalHourRows = await goals
+            // var goalHourRows = await goals
+            //     .Where(x => x.GoaledAt != null)
+            //     .GroupBy(x => new
+            //     {
+            //         Y = x.GoaledAt!.Value.Year,
+            //         M = x.GoaledAt!.Value.Month,
+            //         D = x.GoaledAt!.Value.Day,
+            //         H = x.GoaledAt!.Value.Hour
+            //     })
+            //     .Select(g => new
+            //     {
+            //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+            //         Count = g.Count()
+            //     })
+            //     .OrderBy(x => x.Hour)
+            //     .ToListAsync();
+            // GoalsByHour = goalHourRows
+            //     .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
+            //     .ToList();
+
+            var goalHourRowsRaw = await goals
                 .Where(x => x.GoaledAt != null)
                 .GroupBy(x => new
                 {
@@ -215,15 +266,24 @@ public class TotalizeModel : PageModel
                 })
                 .Select(g => new
                 {
-                    Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+                    g.Key.Y,
+                    g.Key.M,
+                    g.Key.D,
+                    g.Key.H,
                     Count = g.Count()
                 })
-                .OrderBy(x => x.Hour)
+                .OrderBy(x => x.Y)
+                .ThenBy(x => x.M)
+                .ThenBy(x => x.D)
+                .ThenBy(x => x.H)
                 .ToListAsync();
-
-
-            GoalsByHour = goalHourRows
-                .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
+            // DateTime生成はクライアント側
+            GoalsByHour = goalHourRowsRaw
+                .Select(x => new HourCountRow
+                {
+                    Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
+                    Count = x.Count
+                })
                 .ToList();
         }
         catch (Exception ex)

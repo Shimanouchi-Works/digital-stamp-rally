@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using DigitalStampRally.Database;
+using System.Linq.Expressions;
 
 namespace DigitalStampRally.Services;
 
@@ -8,8 +9,46 @@ public class DbStampService
     private readonly DigitalStampRallyContext _db;
     public DbStampService(DigitalStampRallyContext db) => _db = db;
 
-    public async Task<ParticipantSession> GetOrCreateSessionAsync(long eventId, string sessionKey, string userAgent, string ipHash)
+    // public async Task<ParticipantSession> GetOrCreateSessionAsync(long eventId, string sessionKey, string userAgent, string ipHash)
+    // {
+    //     try
+    //     {
+    //         var s = await _db.ParticipantSessions
+    //             .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
+
+    //         if (s != null)
+    //         {
+    //             s.LastSeenAt = DateTime.Now;
+    //             s.UserAgent = userAgent;
+    //             await _db.SaveChangesAsync();
+    //             return s;
+    //         }
+
+    //         s = new ParticipantSession
+    //         {
+    //             Id = IdUtil.NewId(),
+    //             EventsId = eventId,
+    //             SessionKey = sessionKey,
+    //             FirstSeenAt = DateTime.Now,
+    //             LastSeenAt = DateTime.Now,
+    //             UserAgent = userAgent,
+    //             IpHash = ipHash,
+    //             IsBlocked = false
+    //         };
+
+    //         _db.ParticipantSessions.Add(s);
+    //         await _db.SaveChangesAsync();
+    //         return s;
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         throw;
+    //     }
+    // }
+    public async Task<ParticipantSession> GetOrCreateSessionAsync(
+        long eventId, string sessionKey, string userAgent, string ipHash)
     {
+        // まず通常の取得
         var s = await _db.ParticipantSessions
             .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
 
@@ -17,10 +56,13 @@ public class DbStampService
         {
             s.LastSeenAt = DateTime.Now;
             s.UserAgent = userAgent;
+            // ipHashも更新したいならここで
+            // s.IpHash = ipHash;
             await _db.SaveChangesAsync();
             return s;
         }
 
+        // 無ければ作成
         s = new ParticipantSession
         {
             Id = IdUtil.NewId(),
@@ -34,9 +76,32 @@ public class DbStampService
         };
 
         _db.ParticipantSessions.Add(s);
-        await _db.SaveChangesAsync();
-        return s;
+
+        try
+        {
+            await _db.SaveChangesAsync();
+            return s;
+        }
+        catch (DbUpdateException)
+        {
+            // ここに来るのは「同時に誰か(自分の別リクエスト含む)が先にINSERTした」ケース
+            var existing = await _db.ParticipantSessions
+                .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
+
+            if (existing != null)
+            {
+                existing.LastSeenAt = DateTime.Now;
+                existing.UserAgent = userAgent;
+                // existing.IpHash = ipHash;
+                await _db.SaveChangesAsync();
+                return existing;
+            }
+
+            // ここまで来るのは本当に別原因なので上に投げる
+            throw;
+        }
     }
+
 
     // public Task<bool> IsGoaledAsync(long eventId, long sessionId)
     //     => _db.Goals.AnyAsync(g => g.EventsId == eventId && g.ParticipantSessionsId == sessionId);

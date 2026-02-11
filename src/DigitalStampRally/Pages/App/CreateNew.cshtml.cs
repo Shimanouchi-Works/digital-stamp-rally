@@ -18,16 +18,18 @@ public class CreateNewModel : PageModel
     private readonly IProjectDraftStore _draftStore;
     private readonly DbEventService _eventService;
     private readonly IConfiguration _config;
+    private readonly ILogger<CreateNewModel> _logger;
 
     public CreateNewModel(
         IProjectDraftStore draftStore,
         DbEventService eventService,
-        IConfiguration config)
+        IConfiguration config,
+        ILogger<CreateNewModel> logger)
     {
         _draftStore = draftStore;
         _eventService = eventService;
         _config = config;
-
+        _logger = logger;
         // QuestPDF ライセンス（Community）
         QuestPDF.Settings.License = LicenseType.Community;
     }
@@ -40,6 +42,8 @@ public class CreateNewModel : PageModel
 
     public void OnGet(string? load)
     {
+        _logger.LogInformation("Accessed CreateNew page with load token: {LoadToken}", load);
+
         try
         {
             // デフォルト値
@@ -268,6 +272,7 @@ public class CreateNewModel : PageModel
             foreach (var spot in project.Spots)
             {
                 var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
+                _logger.LogInformation($"Generating poster PDF for Spot '{spot.SpotName}' with URL: {url}");
                 var pdf = BuildPosterPdf(project, spot.SpotName, spot.IsRequired, url);
                 AddBytes(zip, $"posters/spot_{SanitizeFileName(spot.SpotName)}.pdf", pdf);
             }
@@ -275,6 +280,7 @@ public class CreateNewModel : PageModel
             // ゴール用PDF
             {
                 var url = $"{project.Urls.SetGoalBase}?e={project.EventId}&t={project.GoalToken}";
+                _logger.LogInformation($"Generating goal PDF with URL: {url}");
                 var pdf = BuildSimpleQrPdf(
                     title: "利用者ゴールQRコード",
                     subtitle: "主催者が管理するQRです。来場者がゴール時に読み取ります。",

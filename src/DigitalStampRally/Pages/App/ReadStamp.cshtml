@@ -52,9 +52,10 @@
             <ul class="list-group" id="stamp-list"></ul>
 
             <div class="small text-muted mt-3">
-                注意：
+                @* 注意：
                 <br />・通信が必要です
-                <br />・同じ端末（同じブラウザ）で集める必要があります
+                <br />・同じ端末（同じブラウザ）で集める必要があります *@
+                注意：スタンプのQRコードは全て、同じ端末（同じブラウザ）で開いてください。
             </div>
         </div>
     </div>
@@ -167,13 +168,15 @@
 
         for(const e of entries){
             const meta = spotMap[e.sid]; // JSON上はキーが文字列
-            const name = meta ? meta.name : e.sid;
+            const name = meta ? meta.Name : e.sid;
 
             const li = document.createElement("li");
             li.className = "list-group-item d-flex justify-content-between align-items-center";
 
             const left = document.createElement("div");
-            left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`;
+            @* left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`; *@
+            left.innerHTML = `<div class="fw-bold">${name}</div>
+                            <div class="small text-muted">${formatJst(e.ts)}</div>`;
 
             const badge = document.createElement("span");
             badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
@@ -286,7 +289,7 @@
         }
 
         badgeAch.classList.remove("d-none");
-        codeEl.textContent = data.code;
+        codeEl.textContent = formatAchievementCode(data.code);
         hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
     })().catch(() => {});
 })();

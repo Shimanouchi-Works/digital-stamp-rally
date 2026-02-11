@@ -8,9 +8,9 @@
 <div class="container py-4">
     <div class="mb-3">
         <h1 class="h4 fw-bold mb-1">@Model.EventTitle</h1>
-        <div class="text-muted small">
+        @* <div class="text-muted small">
             有効期限：@Model.ValidFrom:yyyy/MM/dd HH:mm ～ @Model.ValidTo:yyyy/MM/dd HH:mm
-        </div>
+        </div> *@
     </div>
 
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -51,9 +51,10 @@
             <div id="goal-message" class="small text-muted mt-2"></div>
 
             <div class="small text-muted mt-3">
-                注意：
+                @* 注意：
                 <br />・ゴールすると以後スタンプ読み取りはできません
-                <br />・同じ端末（同じブラウザ）で集める必要があります
+                <br />・同じ端末（同じブラウザ）で集める必要があります *@
+                注意：ゴールすると以後スタンプ読み取りはできません。
             </div>
         </div>
     </div>
@@ -152,12 +153,14 @@
 
         for(const e of entries){
             const meta = spotMap[e.sid];
-            const name = meta ? meta.name : e.sid;
+            const name = meta ? meta.Name : e.sid;
 
             const li = document.createElement("li");
             li.className = "list-group-item d-flex justify-content-between align-items-center";
             const left = document.createElement("div");
-            left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`;
+            @* left.innerHTML = `<div class="fw-bold">${name}</div><div class="small text-muted">${e.ts}</div>`; *@
+            left.innerHTML = `<div class="fw-bold">${name}</div>
+                            <div class="small text-muted">${formatJst(e.ts)}</div>`;
 
             const badge = document.createElement("span");
             badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
@@ -211,7 +214,7 @@
             btn.disabled = true;
             msg.textContent = "この端末はすでにゴール済みです。";
             if(data.code){
-                codeEl.textContent = data.code;
+                codeEl.textContent = formatAchievementCode(data.code);
                 codeHint.textContent = "主催者の集計画面で照会できます。";
             }
         }

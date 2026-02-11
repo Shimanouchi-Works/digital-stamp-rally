@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
+using NLog.Web;
 using DigitalStampRally.Services;
 using DigitalStampRally.Database;
 
@@ -23,6 +24,13 @@ builder.Services.AddSingleton<IProjectDraftStore, MemoryProjectDraftStore>();
 builder.Services.AddScoped<DbEventService>();
 builder.Services.AddScoped<DbStampService>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+
+// いったん既存のロガーをクリアして NLog に寄せる
+builder.Logging.ClearProviders();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+// NLog を使う
+builder.Host.UseNLog();
+
 
 // Razor Pages
 builder.Services.AddRazorPages(options =>
