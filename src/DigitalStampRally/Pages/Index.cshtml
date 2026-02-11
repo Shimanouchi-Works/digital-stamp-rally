@@ -1,7 +1,7 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "デジタルスタンプラリー｜無料・登録不要で数分作成";
+    ViewData["Title"] = $"{DigitalStampRally.Models.AppConst.AppName}｜無料・登録不要で数分作成";
     // _Layout.cshtml 側で Bootstrap 5 を読み込んでいる前提です。
     // CTAリンク先はあとで実際のページに合わせて変更してください（下に「TODO」コメントあり）。
 }
@@ -82,6 +82,7 @@
                 </div>
 
                 <p class="lp-kicker text-primary mb-2">Digital Stamp Rally</p>
+                @* <p class="lp-kicker text-primary mb-2">@DigitalStampRally.Models.AppConst.AppName</p> *@
 
                 <h1 class="display-5 fw-bold lh-sm mb-3">
                     スタンプラリー、<span class="text-primary">数分</span>で作れます。

@@ -1,8 +1,11 @@
+using System.IO.Compression;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using DigitalStampRally.Services;
 using DigitalStampRally.Database;
+using DigitalStampRally.Models;
 
 namespace DigitalStampRally.Pages;
 
@@ -56,61 +59,119 @@ public class AppIndexModel : PageModel
     }
 
     // ★ これは仕様上必要なので残す（JSONロード → CreateNewへ）
+    // public async Task<IActionResult> OnPostLoadAsync(IFormFile? projectFile)
+    // {
+    //     try
+    //     {
+    //         // 基本バリデーション
+    //         if (projectFile == null || projectFile.Length == 0)
+    //         {
+    //             ErrorMessage = "JSONファイルが選択されていません。";
+    //             await OnGetAsync(); // 一覧を表示している場合、再表示に必要
+    //             return Page();
+    //         }
+
+    //         // 初期リリース想定：10MB制限（必要なら後で調整）
+    //         const long maxBytes = 10 * 1024 * 1024;
+    //         if (projectFile.Length > maxBytes)
+    //         {
+    //             ErrorMessage = "ファイルサイズが大きすぎます（最大 10MB）。";
+    //             await OnGetAsync();
+    //             return Page();
+    //         }
+
+    //         // 拡張子チェック（最低限）
+    //         var ext = Path.GetExtension(projectFile.FileName);
+    //         if (!string.Equals(ext, ".json", StringComparison.OrdinalIgnoreCase))
+    //         {
+    //             ErrorMessage = "拡張子が .json のファイルを選択してください。";
+    //             await OnGetAsync();
+    //             return Page();
+    //         }
+
+    //         string json;
+    //         try
+    //         {
+    //             using var sr = new StreamReader(projectFile.OpenReadStream());
+    //             json = await sr.ReadToEndAsync();
+    //         }
+    //         catch
+    //         {
+    //             ErrorMessage = "ファイルの読み取りに失敗しました。";
+    //             await OnGetAsync();
+    //             return Page();
+    //         }
+
+    //         // “JSONっぽい”最低限の検査（厳密な検証はCreateNew側で行う）
+    //         if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{"))
+    //         {
+    //             ErrorMessage = "JSON形式として読み取れませんでした。";
+    //             await OnGetAsync();
+    //             return Page();
+    //         }
+
+    //         // サーバー側に短時間だけ保持して、CreateNewへトークンで渡す
+    //         var token = _draftStore.Save(json);
+
+    //         return Redirect($"/App/CreateNew?load={Uri.EscapeDataString(token)}");
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine(ex);
+    //         ErrorMessage = "不明なエラー";
+    //         return Page();
+    //     }
+    // }
+
     public async Task<IActionResult> OnPostLoadAsync(IFormFile? projectFile)
     {
         try
         {
-            // 基本バリデーション
             if (projectFile == null || projectFile.Length == 0)
             {
-                ErrorMessage = "JSONファイルが選択されていません。";
-                await OnGetAsync(); // 一覧を表示している場合、再表示に必要
+                ErrorMessage = "ファイルが選択されていません。";
+                await OnGetAsync();
                 return Page();
             }
 
-            // 初期リリース想定：10MB制限（必要なら後で調整）
-            const long maxBytes = 10 * 1024 * 1024;
+            const long maxBytes = 30 * 1024 * 1024; // 30MB
             if (projectFile.Length > maxBytes)
             {
-                ErrorMessage = "ファイルサイズが大きすぎます（最大 10MB）。";
+                ErrorMessage = "ファイルサイズが大きすぎます（最大 30MB）。";
                 await OnGetAsync();
                 return Page();
             }
 
-            // 拡張子チェック（最低限）
             var ext = Path.GetExtension(projectFile.FileName);
-            if (!string.Equals(ext, ".json", StringComparison.OrdinalIgnoreCase))
+
+            if (ext.Equals(".qmkpj", StringComparison.OrdinalIgnoreCase))
             {
-                ErrorMessage = "拡張子が .json のファイルを選択してください。";
-                await OnGetAsync();
-                return Page();
+                // 直 qmkpj
+                await using var input = projectFile.OpenReadStream();
+                return await LoadFromQmkpjStreamAsync(input);
             }
 
-            string json;
-            try
+            if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                using var sr = new StreamReader(projectFile.OpenReadStream());
-                json = await sr.ReadToEndAsync();
-            }
-            catch
-            {
-                ErrorMessage = "ファイルの読み取りに失敗しました。";
-                await OnGetAsync();
-                return Page();
-            }
+                // 外側ZIP（PDF付き）から project.qmkpj を探す
+                await using var input = projectFile.OpenReadStream();
+                using var outer = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
 
-            // “JSONっぽい”最低限の検査（厳密な検証はCreateNew側で行う）
-            if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{"))
-            {
-                ErrorMessage = "JSON形式として読み取れませんでした。";
-                await OnGetAsync();
-                return Page();
+                var qmkpjEntry = outer.GetEntry("project.qmkpj");
+                if (qmkpjEntry == null)
+                {
+                    ErrorMessage = "project.qmkpj が見つかりません。古い形式のZIP、またはこのアプリのファイルではない可能性があります。";
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                await using var qmkpjStream = qmkpjEntry.Open();
+                return await LoadFromQmkpjStreamAsync(qmkpjStream);
             }
 
-            // サーバー側に短時間だけ保持して、CreateNewへトークンで渡す
-            var token = _draftStore.Save(json);
-
-            return Redirect($"/App/CreateNew?load={Uri.EscapeDataString(token)}");
+            ErrorMessage = "拡張子が .zip または .qmkpj のファイルを選択してください。";
+            await OnGetAsync();
+            return Page();
         }
         catch (Exception ex)
         {
@@ -119,6 +180,119 @@ public class AppIndexModel : PageModel
             return Page();
         }
     }
+
+    private async Task<IActionResult> LoadFromQmkpjStreamAsync(Stream qmkpjStream)
+    {
+        string json;
+        StampRallyProjectExport manifest;
+
+        byte[]? imageBytes = null;
+        string? imageFileName = null;
+        string? imageContentType = null;
+
+        try
+        {
+            using var zip = new ZipArchive(qmkpjStream, ZipArchiveMode.Read, leaveOpen: true);
+
+            var jsonEntry = zip.GetEntry("project.json");
+            if (jsonEntry == null)
+            {
+                ErrorMessage = "project.json が見つかりません。このアプリの project.qmkpj ではない可能性があります。";
+                await OnGetAsync();
+                return Page();
+            }
+
+            await using (var es = jsonEntry.Open())
+            using (var sr = new StreamReader(es))
+            {
+                json = await sr.ReadToEndAsync();
+            }
+
+            manifest = JsonSerializer.Deserialize<StampRallyProjectExport>(json, JsonOptions())
+                    ?? throw new Exception("project.json parse failed");
+
+            if (!string.Equals(manifest.App, "Qmikke", StringComparison.Ordinal) ||
+                !string.Equals(manifest.Format, "stamp-rally-project", StringComparison.Ordinal) ||
+                manifest.Version != 1)
+            {
+                ErrorMessage = "このアプリが出力したプロジェクトファイルではありません。";
+                await OnGetAsync();
+                return Page();
+            }
+
+            // 画像があれば読む + sha256検証
+            if (manifest.EventImage != null && !string.IsNullOrWhiteSpace(manifest.EventImage.FileName))
+            {
+                var imgEntry = zip.GetEntry(manifest.EventImage.FileName);
+                if (imgEntry == null)
+                {
+                    ErrorMessage = "イベント画像が project.qmkpj 内に見つかりません（欠損の可能性があります）。";
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                const long maxImageBytes = 2 * 1024 * 1024;
+                if (imgEntry.Length > maxImageBytes)
+                {
+                    ErrorMessage = "イベント画像が大きすぎます（最大 2MB）。";
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                await using var imgStream = imgEntry.Open();
+                using var ms = new MemoryStream();
+                await imgStream.CopyToAsync(ms);
+                imageBytes = ms.ToArray();
+
+                var sha = ComputeSha256Hex(imageBytes);
+                if (!string.Equals(sha, manifest.EventImage.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    ErrorMessage = "イベント画像の整合性チェックに失敗しました（改ざん/破損の可能性があります）。";
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                imageFileName = Path.GetFileName(manifest.EventImage.FileName);
+                imageContentType = manifest.EventImage.ContentType;
+            }
+        }
+        catch
+        {
+            ErrorMessage = "project.qmkpj の読み取りに失敗しました。ファイルが壊れている可能性があります。";
+            await OnGetAsync();
+            return Page();
+        }
+
+        DraftImagePayload? imagePayload = null;
+        if (imageBytes != null)
+        {
+            imagePayload = new DraftImagePayload
+            {
+                Bytes = imageBytes,
+                FileName = imageFileName ?? "event",
+                ContentType = string.IsNullOrWhiteSpace(imageContentType) ? "application/octet-stream" : imageContentType
+            };
+        }
+
+        var token = _draftStore.Save(json, imagePayload);
+        return Redirect($"/App/CreateNew?load={Uri.EscapeDataString(token)}");
+    }
+
+
+    private static string ComputeSha256Hex(byte[] bytes)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static JsonSerializerOptions JsonOptions()
+        => new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true
+        };
+
+
 
     public class EventSummary
     {

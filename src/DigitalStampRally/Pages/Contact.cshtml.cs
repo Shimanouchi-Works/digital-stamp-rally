@@ -60,11 +60,11 @@ public class ContactModel : PageModel
         }
 
         // 1) ユーザー向け確認メール
-        var userSubject = "【Digital Stamp Rally】お問い合わせを受け付けました";
+        var userSubject = $"【{DigitalStampRally.Models.AppConst.AppName}】お問い合わせを受け付けました";
         var userBody = BuildUserBody(Input);
 
         // 2) 管理者向け通知メール
-        var adminSubject = "【問い合わせ通知】Digital Stamp Rally";
+        var adminSubject = $"【問い合わせ通知】{DigitalStampRally.Models.AppConst.AppName}";
         var adminBody = BuildAdminBody(Input);
 
         try
@@ -100,7 +100,7 @@ public class ContactModel : PageModel
         sb.AppendLine("----");
         sb.AppendLine();
         sb.AppendLine("※本メールは送信専用です。返信されてもお答えできません。");
-        sb.AppendLine("Digital Stamp Rally");
+        sb.AppendLine($"{DigitalStampRally.Models.AppConst.AppName}");
         return sb.ToString();
     }
 

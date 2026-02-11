@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using DigitalStampRally.Models;
 
 namespace DigitalStampRally.Services;
 
@@ -11,21 +12,38 @@ public class MemoryProjectDraftStore : IProjectDraftStore
         _cache = cache;
     }
 
-    public string Save(string json)
+    // ----------------------------
+    // 保存（JSON + 画像）
+    // ----------------------------
+    public string Save(string json, DraftImagePayload? image = null)
     {
-        var token = Convert.ToHexString(Guid.NewGuid().ToByteArray()); // 短くて衝突しにくい
-        _cache.Set(Key(token), json, new MemoryCacheEntryOptions
+        var token = Convert.ToHexString(Guid.NewGuid().ToByteArray());
+
+        var payload = new ProjectDraftPayload
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30) // 30分だけ保持
+            Json = json,
+            EventImage = image
+        };
+
+        _cache.Set(Key(token), payload, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
         });
+
         return token;
     }
 
-    public bool TryGet(string token, out string json)
+    // ----------------------------
+    // 取得
+    // ----------------------------
+    public bool TryGet(string token, out ProjectDraftPayload payload)
     {
-        return _cache.TryGetValue(Key(token), out json!);
+        return _cache.TryGetValue(Key(token), out payload!);
     }
 
+    // ----------------------------
+    // 削除
+    // ----------------------------
     public void Remove(string token)
     {
         _cache.Remove(Key(token));

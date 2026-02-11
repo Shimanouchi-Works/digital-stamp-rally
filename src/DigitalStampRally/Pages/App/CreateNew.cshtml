@@ -28,9 +28,29 @@
 
                 <div class="mb-3">
                     <label class="form-label">イベント画像（任意）</label>
-                    <input class="form-control" type="file" asp-for="Input.EventImageFile" accept="image/*" />
+                    <input
+                        id="eventImageInput"
+                        class="form-control"
+                        type="file"
+                        asp-for="Input.EventImageFile"
+                        accept="image/*" />
                     @* <div class="form-text">PDFに掲載されます。</div> *@
                     <span class="text-danger small" asp-validation-for="Input.EventImageFile"></span>
+
+                    <!-- ★プレビュー領域（新規選択でも復元でもOK） -->
+                    <div id="eventImagePreviewWrap"
+                        class="mt-2"
+                        style="display:none;"
+                        data-loaded-ct="@(Model.Input.LoadedEventImage?.ContentType ?? "")"
+                        data-loaded-b64="@(Model.Input.LoadedEventImage?.Base64 ?? "")"
+                        data-loaded-name="@(Model.Input.LoadedEventImage?.FileName ?? "")">
+                        <div id="eventImagePreviewCaption" class="small text-muted mb-1"></div>
+
+                        <img id="eventImagePreview"
+                            class="img-thumbnail"
+                            style="max-height: 140px; width: auto;"
+                            alt="イベント画像プレビュー" />
+                    </div>
                 </div>
 
                 <div class="row g-3">
@@ -127,7 +147,8 @@
                 </div>
 
                 <div class="form-text">
-                    ※ 最低1件必要です。掲示場所名は空欄や、他の掲示場所名との重複はできません。
+                    ※ 最低1件必要です。<br />
+                    ※ 掲示場所名は空欄や、他の掲示場所名との重複はできません。
                 </div>
             </div>
         </div>
@@ -138,6 +159,8 @@
             </button>
             <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
         </div>
+
+        <input type="hidden" asp-for="Input.LoadToken" />
     </form>
 </div>
 
@@ -157,7 +180,47 @@
             const fromInput = document.querySelector('input[name="Input.ValidFrom"]');
             const toInput   = document.querySelector('input[name="Input.ValidTo"]');
 
+            const input = document.getElementById('eventImageInput');
+            const wrap = document.getElementById('eventImagePreviewWrap');
+            const img = document.getElementById('eventImagePreview');
+            const cap = document.getElementById('eventImagePreviewCaption');
+
             let globalCheckBoxIndex = @Model.Input.Spots.Count;
+
+
+            function showPreview(src, caption) {
+                img.src = src;
+                cap.textContent = caption || "";
+                wrap.style.display = "block";
+            }
+
+            // 1) 初期表示（復元済み画像があれば表示）
+            const loadedB64 = wrap?.dataset?.loadedB64 || "";
+            if (loadedB64) {
+                const ct = wrap.dataset.loadedCt || "image/*";
+                const name = wrap.dataset.loadedName || "event";
+                const src = `data:${ct};base64,${loadedB64}`;
+                showPreview(src, `現在のイベント画像（復元済み）— ${name}`);
+            }
+
+            // 2) 新規選択（ファイルを選んだら即プレビュー）
+            if (input) {
+                input.addEventListener('change', () => {
+                const file = input.files && input.files[0];
+                if (!file) return;
+
+                // 画像以外を弾く（念のため）
+                if (!file.type || !file.type.startsWith("image/")) {
+                    alert("画像ファイルを選択してください。");
+                    input.value = "";
+                    return;
+                }
+
+                const url = URL.createObjectURL(file);
+                showPreview(url, `現在のイベント画像 — ${file.name}`);
+                });
+            }
+
 
             // 行内の「必須」チェック一覧
             function getRowChecks() {

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -30,12 +31,12 @@ public class CreateNewModel : PageModel
         _eventService = eventService;
         _config = config;
         _logger = logger;
-        // QuestPDF ライセンス（Community）
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
     [BindProperty]
     public CreateNewInputModel Input { get; set; } = new();
+
     public int MaxSpotsForUi { get; set; }
 
     public string? ErrorMessage { get; set; }
@@ -63,14 +64,14 @@ public class CreateNewModel : PageModel
             var maxSpots = _config["AppConfig:MaxSpots"] ?? "30";
             MaxSpotsForUi = int.Parse(maxSpots);
 
-            // loadトークンがあればドラフト復元
+            // loadトークンがあればドラフト復元（JSON＋画像）
             if (!string.IsNullOrWhiteSpace(load))
             {
-                if (_draftStore.TryGet(load, out var json))
+                if (_draftStore.TryGet(load, out ProjectDraftPayload payload))
                 {
                     try
                     {
-                        var draft = JsonSerializer.Deserialize<ProjectDraftDto>(json, JsonOptions());
+                        var draft = JsonSerializer.Deserialize<StampRallyProjectExport>(payload.Json, JsonOptions());
                         if (draft != null)
                         {
                             Input.EventTitle = draft.EventTitle ?? "";
@@ -83,13 +84,27 @@ public class CreateNewModel : PageModel
                                 IsRequired = s.IsRequired
                             }).ToList() ?? new List<SpotInputModel> { new() };
 
-                            // 使い切りにしたい場合は消してOK（必要ならこの行を外す）
-                            _draftStore.Remove(load);
+                            // ★ZIPから復元した画像があればInputに保持
+                            if (payload.EventImage != null &&
+                                payload.EventImage.Bytes != null &&
+                                payload.EventImage.Bytes.Length > 0)
+                            {
+                                Input.LoadedEventImage = new EventImageDto
+                                {
+                                    FileName = payload.EventImage.FileName ?? "event",
+                                    ContentType = payload.EventImage.ContentType ?? "application/octet-stream",
+                                    Base64 = Convert.ToBase64String(payload.EventImage.Bytes)
+                                };
+                            }
+
+                            Input.LoadToken = load;
+                            // 使い切りにしたい場合は消してOK
+                            //_draftStore.Remove(load);
                         }
                     }
                     catch
                     {
-                        ErrorMessage = "読み出したJSONの解析に失敗しました（形式が不正の可能性があります）。";
+                        ErrorMessage = "読み出したproject.jsonの解析に失敗しました（形式が不正の可能性があります）。";
                     }
                 }
                 else
@@ -112,7 +127,22 @@ public class CreateNewModel : PageModel
     {
         try
         {
-            // 入力の基本チェック
+            // ★POSTでは LoadedEventImage が保持されないので、LoadToken から再復元する
+            if (Input.LoadedEventImage == null &&
+                !string.IsNullOrWhiteSpace(Input.LoadToken) &&
+                _draftStore.TryGet(Input.LoadToken, out ProjectDraftPayload payload))
+            {
+                if (payload.EventImage != null && payload.EventImage.Bytes.Length > 0)
+                {
+                    Input.LoadedEventImage = new EventImageDto
+                    {
+                        FileName = payload.EventImage.FileName ?? "event",
+                        ContentType = payload.EventImage.ContentType ?? "application/octet-stream",
+                        Base64 = Convert.ToBase64String(payload.EventImage.Bytes)
+                    };
+                }
+            }
+
             if (!ModelState.IsValid)
                 return Page();
 
@@ -145,8 +175,10 @@ public class CreateNewModel : PageModel
                 return Page();
             }
 
-            // 画像（任意）※DBには保存しない（project.json と PDF 用）
+            // 画像（任意）※DBには保存しない（ZIP + PDF用）
             EventImageDto? eventImage = null;
+
+            // (1) ユーザーがアップロードした画像
             if (Input.EventImageFile != null && Input.EventImageFile.Length > 0)
             {
                 const long maxBytes = 2 * 1024 * 1024; // 2MB
@@ -158,6 +190,7 @@ public class CreateNewModel : PageModel
 
                 await using var ms = new MemoryStream();
                 await Input.EventImageFile.CopyToAsync(ms);
+
                 eventImage = new EventImageDto
                 {
                     FileName = Input.EventImageFile.FileName,
@@ -166,10 +199,15 @@ public class CreateNewModel : PageModel
                 };
             }
 
+            // (2) ZIPから復元された画像（アップロードが無い場合に採用）
+            if (eventImage == null && Input.LoadedEventImage != null)
+            {
+                eventImage = Input.LoadedEventImage;
+            }
+
             // =========================
             // ★ DB保存（events / spots / rewards）
             // =========================
-            // DBに保存するのは spotName/isRequired だけでOK（tokenは内部生成されhash保存）
             var spotInputs = Input.Spots
                 .Select(s => (Name: s.SpotName.Trim(), IsRequired: s.IsRequired))
                 .ToList();
@@ -191,17 +229,20 @@ public class CreateNewModel : PageModel
                 return Page();
             }
 
-            // =========================
             // project.json / PDF 生成用 ProjectDto を構築
-            // （IDは文字列のまま保持するが、中身は数値文字列）
-            // =========================
             var project = BuildProjectFromDb(created, eventImage);
 
-            // ZIP出力（PDF×(スポット数+2) + project.json）
+            // ZIP出力（project.json + images + PDF）
             var zipBytes = BuildZipPackage(project);
 
             var safeTitle = SanitizeFileName(Input.EventTitle);
             var fileName = $"StampRally_{safeTitle}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+
+            if (!string.IsNullOrWhiteSpace(Input.LoadToken))
+            {
+                //_draftStore.Remove(Input.LoadToken); 画面遷移なしで再作成した場合を考慮して明示的には削除しない。時間で消える
+            }
+
             return File(zipBytes, "application/zip", fileName);
         }
         catch (Exception ex)
@@ -217,23 +258,19 @@ public class CreateNewModel : PageModel
     // --------------------
     private ProjectDto BuildProjectFromDb(CreateEventResult created, EventImageDto? image)
     {
-        // var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var baseUrl = _config["QrBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
 
         var spots = created.Spots.Select(s => new SpotDto
         {
-            // ProjectDto の互換を保つため string のまま入れる（数値文字列）
             SpotId = s.SpotId.ToString(),
             SpotName = s.Name,
             IsRequired = s.IsRequired,
-            SpotToken = s.SpotToken // raw token（DBにはhashのみ）
+            SpotToken = s.SpotToken
         }).ToList();
 
         return new ProjectDto
         {
             Version = 1,
-
-            // ProjectDto の互換を保つため string のまま入れる（数値文字列）
             EventId = created.EventId.ToString(),
 
             EventTitle = Input.EventTitle.Trim(),
@@ -257,22 +294,69 @@ public class CreateNewModel : PageModel
     }
 
     // --------------------
-    // ZIP build
+    // ZIP build (project.json + images + pdfs)
     // --------------------
     private byte[] BuildZipPackage(ProjectDto project)
     {
         using var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
         {
-            // project.json
-            var json = JsonSerializer.Serialize(project, JsonOptions());
-            AddText(zip, "project.json", json);
+            // 画像をZIPに格納し、manifestに参照情報を持たせる
+            EventImageRef? imageRef = null;
+
+            if (project.EventImage != null && !string.IsNullOrWhiteSpace(project.EventImage.Base64))
+            {
+                var imgBytes = GetEventImageBytes(project.EventImage);
+
+                if (imgBytes != null && imgBytes.Length > 0)
+                {
+                    var ext = GuessImageExtension(project.EventImage.ContentType, project.EventImage.FileName);
+                    var imagePathInZip = $"images/event{ext}";
+
+                    //AddBytes(zip, imagePathInZip, imgBytes);
+
+                    imageRef = new EventImageRef
+                    {
+                        FileName = imagePathInZip,
+                        ContentType = project.EventImage.ContentType ?? "application/octet-stream",
+                        SizeBytes = imgBytes.LongLength,
+                        Sha256 = ComputeSha256Hex(imgBytes)
+                    };
+                }
+            }
+
+            // project.json（最小 + 画像参照）
+            var export = new StampRallyProjectExport
+            {
+                App = "Qmikke",
+                Format = "stamp-rally-project",
+                Version = 1,
+
+                EventTitle = project.EventTitle,
+                ValidFrom = project.ValidFrom,
+                ValidTo = project.ValidTo,
+
+                EventImage = imageRef,
+
+                Spots = project.Spots.Select(s => new SpotExport
+                {
+                    SpotName = s.SpotName,
+                    IsRequired = s.IsRequired
+                }).ToList()
+            };
+
+            // var json = JsonSerializer.Serialize(export, JsonOptions());
+            // AddText(zip, "project.json", json);
+            // ★復元用パッケージ（project.qmkpj）を外側ZIPに同梱
+            var qmkpjBytes = BuildProjectPackageQmkpj(project);
+            AddBytes(zip, "project.qmkpj", qmkpjBytes);
 
             // スポット掲示用PDF（各スポット）
             foreach (var spot in project.Spots)
             {
                 var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
-                _logger.LogInformation($"Generating poster PDF for Spot '{spot.SpotName}' with URL: {url}");
+                _logger.LogInformation("Generating poster PDF for Spot '{SpotName}' with URL: {Url}", spot.SpotName, url);
+
                 var pdf = BuildPosterPdf(project, spot.SpotName, spot.IsRequired, url);
                 AddBytes(zip, $"posters/spot_{SanitizeFileName(spot.SpotName)}.pdf", pdf);
             }
@@ -280,7 +364,8 @@ public class CreateNewModel : PageModel
             // ゴール用PDF
             {
                 var url = $"{project.Urls.SetGoalBase}?e={project.EventId}&t={project.GoalToken}";
-                _logger.LogInformation($"Generating goal PDF with URL: {url}");
+                _logger.LogInformation("Generating goal PDF with URL: {Url}", url);
+
                 var pdf = BuildSimpleQrPdf(
                     title: "利用者ゴールQRコード",
                     subtitle: "主催者が管理するQRです。来場者がゴール時に読み取ります。",
@@ -341,11 +426,10 @@ public class CreateNewModel : PageModel
 
                     if (eventImage != null)
                     {
-                        //col.Item().PaddingTop(8).Image(eventImage).FitWidth();
                         col.Item().PaddingTop(8)
-                            .Height(160)              // ★最大高さを固定
+                            .Height(160)
                             .Image(eventImage)
-                            .FitArea();               // ★枠内に収める
+                            .FitArea();
                     }
 
                     col.Item().PaddingTop(14).Row(row =>
@@ -368,9 +452,7 @@ public class CreateNewModel : PageModel
 
                     col.Item().PaddingTop(16).Text("読み取り方法：スマホのカメラでQRを読み取り、表示された画面の指示に従ってください。");
 
-                    col.Item().PaddingTop(8).Text("注意：")
-                        .SemiBold();
-
+                    col.Item().PaddingTop(8).Text("注意：").SemiBold();
                     col.Item().Text("・通信が必要です");
                     col.Item().Text("・同じ端末（同じブラウザ）で集める必要があります");
                 });
@@ -398,11 +480,10 @@ public class CreateNewModel : PageModel
 
                     if (eventImage != null)
                     {
-                        // col.Item().PaddingTop(8).Image(eventImage).FitWidth();
                         col.Item().PaddingTop(8)
-                            .Height(160)              // ★最大高さを固定
+                            .Height(160)
                             .Image(eventImage)
-                            .FitArea();               // ★枠内に収める
+                            .FitArea();
                     }
 
                     col.Item().PaddingTop(14).Row(row =>
@@ -456,14 +537,11 @@ public class CreateNewModel : PageModel
 
                 page.Content().Column(col =>
                 {
-                    // スポット掲示用に寄せる：イベント名を主役に
                     col.Item().Text(eventTitle).FontSize(22).SemiBold();
 
-                    // タイトル/説明（サブ）
                     col.Item().PaddingTop(4).Text(title).FontSize(14).SemiBold();
                     col.Item().Text(subtitle).FontColor(Colors.Grey.Darken2);
 
-                    // 画像（任意）
                     if (eventImage != null)
                     {
                         col.Item().PaddingTop(8)
@@ -472,14 +550,12 @@ public class CreateNewModel : PageModel
                             .FitArea();
                     }
 
-                    // ここが肝：スポット用と同じQR枠サイズにする
                     col.Item().PaddingTop(14).Row(row =>
                     {
                         row.RelativeItem().Column(left =>
                         {
                             left.Item().Text("用途：ゴール用QR").FontSize(16).SemiBold();
                             left.Item().PaddingTop(6).Text("来場者がゴール時に読み取ります。");
-
                             left.Item().PaddingTop(10)
                                 .Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
                         });
@@ -493,7 +569,6 @@ public class CreateNewModel : PageModel
                             });
                     });
 
-                    // 注意書き（スポットと揃える）
                     col.Item().PaddingTop(16).Text("注意：").SemiBold();
                     col.Item().Text("・通信が必要です");
                     col.Item().Text("・同じ端末（同じブラウザ）で集める必要があります");
@@ -501,6 +576,64 @@ public class CreateNewModel : PageModel
             });
         }).GeneratePdf();
     }
+
+    private byte[] BuildProjectPackageQmkpj(ProjectDto project)
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            // 画像を内側ZIPに格納し、manifestに参照情報を持たせる
+            EventImageRef? imageRef = null;
+
+            if (project.EventImage != null && !string.IsNullOrWhiteSpace(project.EventImage.Base64))
+            {
+                var imgBytes = GetEventImageBytes(project.EventImage);
+
+                if (imgBytes != null && imgBytes.Length > 0)
+                {
+                    var ext = GuessImageExtension(project.EventImage.ContentType, project.EventImage.FileName);
+                    var imagePathInZip = $"images/event{ext}";
+
+                    AddBytes(zip, imagePathInZip, imgBytes);
+
+                    imageRef = new EventImageRef
+                    {
+                        FileName = imagePathInZip,
+                        ContentType = project.EventImage.ContentType ?? "application/octet-stream",
+                        SizeBytes = imgBytes.LongLength,
+                        Sha256 = ComputeSha256Hex(imgBytes)
+                    };
+                }
+            }
+
+            // project.json（最小 + 画像参照）
+            var export = new StampRallyProjectExport
+            {
+                App = "Qmikke",
+                Format = "stamp-rally-project",
+                Version = 1,
+
+                EventTitle = project.EventTitle,
+                ValidFrom = project.ValidFrom,
+                ValidTo = project.ValidTo,
+
+                EventImage = imageRef,
+
+                Spots = project.Spots.Select(s => new SpotExport
+                {
+                    SpotName = s.SpotName,
+                    IsRequired = s.IsRequired
+                }).ToList()
+            };
+
+            var json = JsonSerializer.Serialize(export, JsonOptions());
+            AddText(zip, "project.json", json);
+        }
+
+        return ms.ToArray();
+    }
+
+
 
     // --------------------
     // Helpers
@@ -520,6 +653,31 @@ public class CreateNewModel : PageModel
 
         try { return Convert.FromBase64String(img.Base64); }
         catch { return null; }
+    }
+
+    private static string ComputeSha256Hex(byte[] bytes)
+    {
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string GuessImageExtension(string? contentType, string? originalFileName)
+    {
+        var ct = (contentType ?? "").ToLowerInvariant();
+        if (ct == "image/jpeg" || ct == "image/jpg") return ".jpg";
+        if (ct == "image/png") return ".png";
+        if (ct == "image/webp") return ".webp";
+        if (ct == "image/gif") return ".gif";
+
+        var ext = Path.GetExtension(originalFileName ?? "");
+        if (string.IsNullOrWhiteSpace(ext)) return ".img";
+
+        ext = ext.ToLowerInvariant();
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        if (allowed.Contains(ext))
+            return ext == ".jpeg" ? ".jpg" : ext;
+
+        return ".img";
     }
 
     private static string SanitizeFileName(string name)
@@ -560,7 +718,12 @@ public class CreateNewModel : PageModel
 
         public IFormFile? EventImageFile { get; set; }
 
+        // ★ZIPインポートで復元した画像を保持（アップロードが無い場合に採用）
+        public EventImageDto? LoadedEventImage { get; set; }
+
         public List<SpotInputModel> Spots { get; set; } = new() { new SpotInputModel() };
+
+        public string? LoadToken { get; set; }
     }
 
     public class SpotInputModel
