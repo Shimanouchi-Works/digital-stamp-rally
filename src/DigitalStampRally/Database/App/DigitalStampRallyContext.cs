@@ -28,8 +28,8 @@ public partial class DigitalStampRallyContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
-            .UseCollation("utf8mb4_general_ci")
-            .HasCharSet("utf8mb4");
+            .UseCollation("utf8_general_ci")
+            .HasCharSet("utf8");
 
         modelBuilder.Entity<Event>(entity =>
         {
@@ -42,7 +42,6 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => new { e.Status, e.StartsAt }, "idx_events_status_starts");
 
             entity.Property(e => e.Id)
-                .ValueGeneratedNever()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.CreatedAt)
@@ -89,6 +88,7 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => e.EventsId, "fk_event_rewards_events1_idx");
 
             entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.EventsId)
@@ -172,6 +172,7 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => e.QrTokenHash, "idx_events_spots_qr_token_hash").IsUnique();
 
             entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.EventsId)
@@ -206,44 +207,42 @@ public partial class DigitalStampRallyContext : DbContext
 
         modelBuilder.Entity<Goal>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.HasKey(e => new { e.Id, e.EventsId, e.ParticipantSessionsId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
 
             entity.ToTable("goals");
 
-            entity.HasIndex(e => new { e.ParticipantSessionsId, e.EventsId }, "fk_goals_sessions").IsUnique();
+            entity.HasIndex(e => e.EventsId, "fk_goals_events1_idx");
+
+            entity.HasIndex(e => e.ParticipantSessionsId, "fk_goals_participant_sessions1_idx");
 
             entity.HasIndex(e => new { e.EventsId, e.GoaledAt }, "idx_goals_event_goaled_at");
 
             entity.Property(e => e.Id)
-                .ValueGeneratedNever()
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
+            entity.Property(e => e.EventsId)
+                .HasColumnType("bigint(12)")
+                .HasColumnName("events_id");
+            entity.Property(e => e.ParticipantSessionsId)
+                .HasColumnType("bigint(12)")
+                .HasColumnName("participant_sessions_id");
             entity.Property(e => e.AchievementCode)
                 .HasMaxLength(8)
-                .IsFixedLength()
                 .HasColumnName("achievement_code");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("datetime")
                 .HasColumnName("created_at");
-            entity.Property(e => e.EventsId)
-                .HasColumnType("bigint(12)")
-                .HasColumnName("events_id");
             entity.Property(e => e.GoaledAt)
                 .HasColumnType("datetime")
                 .HasColumnName("goaled_at");
-            entity.Property(e => e.ParticipantSessionsId)
-                .HasColumnType("bigint(12)")
-                .HasColumnName("participant_sessions_id");
 
             entity.HasOne(d => d.Events).WithMany(p => p.Goals)
                 .HasForeignKey(d => d.EventsId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_goals_events");
-
-            entity.HasOne(d => d.ParticipantSession).WithOne(p => p.Goal)
-                .HasForeignKey<Goal>(d => new { d.ParticipantSessionsId, d.EventsId })
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_goals_sessions");
+                .HasConstraintName("fk_goals_events1");
         });
 
         modelBuilder.Entity<ParticipantSession>(entity =>
@@ -258,11 +257,10 @@ public partial class DigitalStampRallyContext : DbContext
 
             entity.HasIndex(e => new { e.EventsId, e.LastSeenAt }, "idx_participant_sessions_events_last_seen_at");
 
-            entity.HasIndex(e => new { e.EventsId, e.SessionKey }, "idx_participant_sessions_events_session_key");
-
-            entity.HasIndex(e => e.SessionKey, "session_key_UNIQUE").IsUnique();
+            entity.HasIndex(e => new { e.EventsId, e.SessionKey }, "idx_participant_sessions_events_session_key").IsUnique();
 
             entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.EventsId)
@@ -313,6 +311,7 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => new { e.ParticipantSessionsId, e.StampedAt }, "idx_stamps_participant_sessions_stamped_at");
 
             entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.EventsId)
@@ -366,6 +365,7 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => new { e.ParticipantSessionsId, e.ParticipantSessionsEventsId }, "fk_stamp_scans_participant_sessions1_idx");
 
             entity.Property(e => e.Id)
+                .ValueGeneratedOnAdd()
                 .HasColumnType("bigint(12)")
                 .HasColumnName("id");
             entity.Property(e => e.EventsId)

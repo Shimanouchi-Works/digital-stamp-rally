@@ -12,7 +12,9 @@
             @Model.EventTitle
             @if (Model.ValidFrom != default && Model.ValidTo != default)
             {
-                <span>（有効期限：@Model.ValidFrom:yyyy/MM/dd HH:mm ～ @Model.ValidTo:yyyy/MM/dd HH:mm）</span>
+                <span>
+                    （有効期限：@Model.ValidFrom!.Value.ToString("yyyy/MM/dd HH:mm") ～ @Model.ValidTo!.Value.ToString("yyyy/MM/dd HH:mm")）
+                </span>
             }
         </div>
     </div>
@@ -43,7 +45,7 @@
                     <div class="mb-3">
                         <label class="form-label">集計画面パスワード</label>
                         <input class="form-control" type="password" name="password" required />
-                        <div class="form-text">※ CreateNew で出力されたPDFに記載されています。</div>
+                        @* <div class="form-text">※ CreateNew で出力されたPDFに記載されています。</div> *@
                     </div>
 
                     <button class="btn btn-primary" type="submit">集計を表示</button>
@@ -104,11 +106,11 @@
                             <td>
                                 @if (s.IsRequired)
                                 {
-                                    <span class="badge text-bg-primary">必須</span>
+                                    <span class="">必須</span>
                                 }
                                 else
                                 {
-                                    <span class="badge text-bg-secondary">任意</span>
+                                    @* <span class="">任意</span> *@
                                 }
                             </td>
                             <td class="text-end">@Model.TotalBySpot.GetValueOrDefault(s.SpotId, 0)</td>
@@ -119,7 +121,7 @@
             </div>
 
             <div class="small text-muted">
-                ※ “読み取り回数” は同一端末での重複読み取りを除外してカウント（IsDuplicate=falseのみ）
+                ※ “読み取り回数” は同一端末での重複読み取りは除外してカウントしています
             </div>
         </div>
     </div>

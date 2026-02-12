@@ -13,11 +13,9 @@ public partial class Goal
 
     public DateTime? GoaledAt { get; set; }
 
-    public string AchievementCode { get; set; } = null!;
+    public string? AchievementCode { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 
     public virtual Event Events { get; set; } = null!;
-
-    public virtual ParticipantSession ParticipantSession { get; set; } = null!;
 }

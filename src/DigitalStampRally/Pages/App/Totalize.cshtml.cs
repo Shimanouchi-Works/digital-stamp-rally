@@ -295,6 +295,7 @@ public class TotalizeModel : PageModel
         return Page();
     }
 
+
     private async Task<HashSet<long>> GetRequiredSpotIdsAsync(long eventId)
     {
         var rows = await _db.Set<RequiredSpotRow>()

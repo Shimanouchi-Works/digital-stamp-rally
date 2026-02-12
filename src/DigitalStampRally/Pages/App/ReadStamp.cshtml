@@ -39,10 +39,13 @@
                     </div>
                 </div>
                 <div class="text-end">
-                    <div class="small text-muted">必須スタンプ</div>
-                    <div class="fw-bold">
-                        <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
-                    </div>
+                    @if( Model.RequiredSpotIds.Count > 0 )
+                    {
+                        <div class="small text-muted">必須スタンプ</div>
+                        <div class="fw-bold">
+                            <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -270,7 +273,10 @@
 
             // 必須達成数表示
             const reqCollected = countRequiredCollected(stamps);
-            document.getElementById("required-count").textContent = String(reqCollected);
+            let requiredCount = document.getElementById("required-count");
+            if( requiredCount ){
+                requiredCount.textContent = String(reqCollected);
+            }
 
             // 一覧表示
             renderStampList(stamps);

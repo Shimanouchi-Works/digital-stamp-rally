@@ -46,11 +46,14 @@
             <ul class="list-group" id="stamp-list"></ul>
 
             <div class="mt-3">
-                <div class="small text-muted">必須スタンプ</div>
-                <div class="fw-bold">
-                    <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
-                </div>
-                <div id="required-hint" class="small text-muted mt-1"></div>
+                @if( Model.RequiredSpotIds.Count > 0 )
+                {
+                    <div class="small text-muted">必須スタンプ</div>
+                    <div class="fw-bold">
+                        <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
+                    </div>
+                    <div id="required-hint" class="small text-muted mt-1"></div>
+                }
             </div>
 
             <hr class="my-3" />
@@ -216,15 +219,21 @@
     renderStampList(stamps);
 
     const reqCollected = countRequiredCollected(stamps);
-    document.getElementById("required-count").textContent = String(reqCollected);
+    let requiredCount = document.getElementById("required-count");
+    if( requiredCount ){
+        requiredCount.textContent = String(reqCollected);
+    }
+
 
     const hint = document.getElementById("required-hint");
-    if(requiredSpotIds.length === 0){
-        hint.textContent = "必須スタンプの指定はありません。";
-    }else if(reqCollected < requiredSpotIds.length){
-        hint.textContent = "必須スタンプが不足しています。";
-    }else{
-        hint.textContent = "必須スタンプを満たしています。";
+    if( hint ){
+        if(requiredSpotIds.length === 0){
+            hint.textContent = "必須スタンプの指定はありません。";
+        }else if(reqCollected < requiredSpotIds.length){
+            hint.textContent = "必須スタンプが不足しています。";
+        }else{
+            hint.textContent = "必須スタンプを満たしています。";
+        }
     }
 
     const btn = document.getElementById("btn-goal");

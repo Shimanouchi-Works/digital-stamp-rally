@@ -35,8 +35,6 @@ public partial class ParticipantSession
 
     public virtual Event Events { get; set; } = null!;
 
-    public virtual Goal? Goal { get; set; }
-
     public virtual ICollection<StampScanLog> StampScanLogs { get; set; } = new List<StampScanLog>();
 
     public virtual ICollection<Stamp> Stamps { get; set; } = new List<Stamp>();
