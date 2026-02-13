@@ -49,8 +49,14 @@ public class CreateNewModel : PageModel
         {
             // デフォルト値
             var now = DateTime.Now;
-            if (Input.ValidFrom == default) Input.ValidFrom = now.AddMinutes(5);
-            if (Input.ValidTo == default) Input.ValidTo = now.AddHours(6);
+            if (Input.ValidFrom == default)
+            {
+                Input.ValidFrom = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+            }
+            if (Input.ValidTo == default)
+            {
+                Input.ValidTo = Input.ValidFrom.AddDays(1);
+            }
 
             string toDateTime(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm");
             var validMonths = _config["AppConfig:EventValidMonth"] ?? "3";

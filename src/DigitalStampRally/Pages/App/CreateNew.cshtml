@@ -286,7 +286,7 @@
                     // (2) 開始が選ばれたら：終了が開始より過去なら、終了=開始に自動補正
                     const toDate = fpTo.selectedDates && fpTo.selectedDates[0];
                     if (!toDate || toDate < fromDate) {
-                    fpTo.setDate(fromDate, true); // true = input値更新 + onChange発火
+                      fpTo.setDate(fromDate, true); // true = input値更新 + onChange発火
                     }
 
                     // 終了の最小値も開始に合わせておく（UI上もミスりにくくなる）
@@ -296,7 +296,7 @@
 
                 // もし初期値がある場合、minDateも合わせておく
                 if (fpFrom.selectedDates && fpFrom.selectedDates[0]) {
-                fpTo.set("minDate", fpFrom.selectedDates[0]);
+                    fpTo.set("minDate", fpFrom.selectedDates[0]);
                 }
 
                 // (3) 開始 > 終了 の場合のエラー表示は、既存の refresh/isValid に統合するのが一番自然。
