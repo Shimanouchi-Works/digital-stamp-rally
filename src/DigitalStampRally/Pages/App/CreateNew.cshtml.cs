@@ -45,6 +45,7 @@ public class CreateNewModel : PageModel
     {
         _logger.LogInformation("Accessed CreateNew page with load token: {LoadToken}", load);
 
+        ViewData["NoIndex"] = true; // ロボット防止
         try
         {
             // デフォルト値
@@ -110,12 +111,12 @@ public class CreateNewModel : PageModel
                     }
                     catch
                     {
-                        ErrorMessage = "読み出したproject.jsonの解析に失敗しました（形式が不正の可能性があります）。";
+                        ErrorMessage = "読み出しエラー(001)。";//"読み出したproject.jsonの解析に失敗しました（形式が不正の可能性があります）。";
                     }
                 }
                 else
                 {
-                    ErrorMessage = "読み出しトークンが無効、または期限切れです。Indexから再度読み出してください。";
+                    ErrorMessage = "読み出しエラー(002)。";//"読み出しトークンが無効、または期限切れです。Indexから再度読み出してください。";
                 }
             }
 

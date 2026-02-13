@@ -32,6 +32,8 @@ public class ReadStampModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(long? e, long? s, string? t)
     {
+        ViewData["NoIndex"] = true; // ロボット防止
+
         try
         {
             if (e == null || s == null || string.IsNullOrWhiteSpace(t))

@@ -3,6 +3,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @if (ViewData["NoIndex"] as bool? == true)
+    {
+        <meta name="robots" content="noindex, nofollow" />
+    }
     <title>@ViewData["Title"] - @DigitalStampRally.Models.AppConst.AppName</title>
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">

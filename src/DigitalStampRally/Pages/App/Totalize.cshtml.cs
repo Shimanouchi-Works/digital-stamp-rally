@@ -46,6 +46,8 @@ public class TotalizeModel : PageModel
     // GET: パスワード入力画面
     public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
+        ViewData["NoIndex"] = true; // ロボット防止
+
         try
         {
             if (e == null || string.IsNullOrWhiteSpace(t))

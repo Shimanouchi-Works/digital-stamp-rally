@@ -32,6 +32,8 @@ public class SetGoalModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
+        ViewData["NoIndex"] = true; // ロボット防止
+
         try
         {
             if (e == null || string.IsNullOrWhiteSpace(t))
