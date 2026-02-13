@@ -41,6 +41,8 @@ public class TotalizeModel : PageModel
     public Dictionary<long, List<HourCountRow>> HourlyBySpot { get; private set; } = new();
     public List<HourCountRow> GoalsByHour { get; private set; } = new();
 
+    public record SearchCodeResponse(bool ok, string message, string? goaledAt);
+
     // GET: パスワード入力画面
     public async Task<IActionResult> OnGetAsync(long? e, string? t)
     {
@@ -122,169 +124,10 @@ public class TotalizeModel : PageModel
 
             IsAuthorized = true;
 
-            // スポット一覧
-            var spots = await _db.EventSpots
-                .Where(x => x.EventsId == EventId && (x.IsActive == null || x.IsActive == true))
-                .OrderBy(x => x.SortOrder ?? 0)
-                .ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
+            // Eventごとに認証済みをSessionに保存
+            HttpContext.Session.SetString($"totalize_auth:{EventId}", "1");
 
-            // 必須スポット（event_rewards(type=1/2, active)に紐づくスポット）
-            var requiredSpotIds = await GetRequiredSpotIdsAsync(EventId);
-
-            Spots = spots
-                .Select(s => new SpotView
-                {
-                    SpotId = s.Id,
-                    SpotName = s.Name,
-                    IsRequired = requiredSpotIds.Contains(s.Id)
-                })
-                .ToList();
-
-            // --------------------
-            // 集計（DB）
-            // --------------------
-
-            // 押印相当：stamps は一意（重複除外済み）
-            var stamps = _db.Stamps
-                .Where(x => x.EventsId == EventId && x.StampedAt != null);
-
-            TotalStampReads = await stamps.CountAsync();
-
-            // 合計（spot別）
-            TotalBySpot = await stamps
-                .GroupBy(x => x.EventSpotsId)
-                .Select(g => new { SpotId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.SpotId, x => x.Count);
-
-            // 毎時（spot別）
-            // var stampHourRows = await stamps
-            //     .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
-            //     .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
-            //     .OrderBy(x => x.EventSpotsId)
-            //     .ThenBy(x => x.Hour)
-            //     .ToListAsync();
-            // var stampHourRows = await stamps
-            //     .Where(x => x.StampedAt != null)
-            //     .GroupBy(x => new
-            //     {
-            //         x.EventSpotsId,
-            //         Y = x.StampedAt!.Value.Year,
-            //         M = x.StampedAt!.Value.Month,
-            //         D = x.StampedAt!.Value.Day,
-            //         H = x.StampedAt!.Value.Hour
-            //     })
-            //     .Select(g => new
-            //     {
-            //         g.Key.EventSpotsId,
-            //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
-            //         Count = g.Count()
-            //     })
-            //     .OrderBy(x => x.EventSpotsId)
-            //     .ThenBy(x => x.Hour)
-            //     .ToListAsync();
-            var stampHourRowsRaw = await stamps
-                .Where(x => x.StampedAt != null)
-                .GroupBy(x => new
-                {
-                    x.EventSpotsId,
-                    Y = x.StampedAt!.Value.Year,
-                    M = x.StampedAt!.Value.Month,
-                    D = x.StampedAt!.Value.Day,
-                    H = x.StampedAt!.Value.Hour
-                })
-                .Select(g => new
-                {
-                    g.Key.EventSpotsId,
-                    g.Key.Y,
-                    g.Key.M,
-                    g.Key.D,
-                    g.Key.H,
-                    Count = g.Count()
-                })
-                .OrderBy(x => x.EventSpotsId)
-                .ThenBy(x => x.Y)
-                .ThenBy(x => x.M)
-                .ThenBy(x => x.D)
-                .ThenBy(x => x.H)
-                .ToListAsync();
-            // ここから先はクライアント側で DateTime を生成
-            var stampHourRows = stampHourRowsRaw.Select(x => new
-            {
-                x.EventSpotsId,
-                Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
-                x.Count
-            }).ToList();
-
-            HourlyBySpot = stampHourRows
-                .GroupBy(x => x.EventSpotsId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count }).ToList()
-                );
-
-            // ゴール人数（合計・毎時）
-            var goals = _db.Goals
-                .Where(x => x.EventsId == EventId && x.GoaledAt != null);
-
-            GoalTotal = await goals.CountAsync();
-
-            // var goalHourRows = await goals
-            //     .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
-            //     .Select(g => new { Hour = g.Key, Count = g.Count() })
-            //     .OrderBy(x => x.Hour)
-            //     .ToListAsync();
-            // var goalHourRows = await goals
-            //     .Where(x => x.GoaledAt != null)
-            //     .GroupBy(x => new
-            //     {
-            //         Y = x.GoaledAt!.Value.Year,
-            //         M = x.GoaledAt!.Value.Month,
-            //         D = x.GoaledAt!.Value.Day,
-            //         H = x.GoaledAt!.Value.Hour
-            //     })
-            //     .Select(g => new
-            //     {
-            //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
-            //         Count = g.Count()
-            //     })
-            //     .OrderBy(x => x.Hour)
-            //     .ToListAsync();
-            // GoalsByHour = goalHourRows
-            //     .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
-            //     .ToList();
-
-            var goalHourRowsRaw = await goals
-                .Where(x => x.GoaledAt != null)
-                .GroupBy(x => new
-                {
-                    Y = x.GoaledAt!.Value.Year,
-                    M = x.GoaledAt!.Value.Month,
-                    D = x.GoaledAt!.Value.Day,
-                    H = x.GoaledAt!.Value.Hour
-                })
-                .Select(g => new
-                {
-                    g.Key.Y,
-                    g.Key.M,
-                    g.Key.D,
-                    g.Key.H,
-                    Count = g.Count()
-                })
-                .OrderBy(x => x.Y)
-                .ThenBy(x => x.M)
-                .ThenBy(x => x.D)
-                .ThenBy(x => x.H)
-                .ToListAsync();
-            // DateTime生成はクライアント側
-            GoalsByHour = goalHourRowsRaw
-                .Select(x => new HourCountRow
-                {
-                    Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
-                    Count = x.Count
-                })
-                .ToList();
+            await LoadTotalizeAsync();
         }
         catch (Exception ex)
         {
@@ -295,6 +138,41 @@ public class TotalizeModel : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnGetSearchCodeAsync(long? e, string? t, string? code)
+    {
+        if (e == null || string.IsNullOrWhiteSpace(t))
+            return new JsonResult(new SearchCodeResponse(false, "URLの情報が不足しています。", null));
+
+        EventId = e.Value;
+        Token = t;
+
+        // トークン検証（必須）
+        if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
+            return new JsonResult(new SearchCodeResponse(false, "集計画面トークンが無効です。", null));
+
+        // 認証済みチェック（Session）
+        var authed = HttpContext.Session.GetString($"totalize_auth:{EventId}") == "1";
+        if (!authed)
+            return new JsonResult(new SearchCodeResponse(false, "未認証です。先にパスワード認証してください。", null));
+
+        var c = (code ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(c))
+            return new JsonResult(new SearchCodeResponse(false, "達成コードを入力してください。", null));
+
+        // ★ここはあなたの実DB列に合わせて修正
+        var row = await _db.Goals
+            .Where(x => x.EventsId == EventId && x.AchievementCode == c)
+            .Select(x => new { x.GoaledAt })
+            .FirstOrDefaultAsync();
+
+        if (row == null)
+            return new JsonResult(new SearchCodeResponse(true, "その達成コードは見つかりませんでした。", null));
+
+        if (row.GoaledAt == null)
+            return new JsonResult(new SearchCodeResponse(true, "達成コードは存在しますが、まだゴールしていません。", null));
+
+        return new JsonResult(new SearchCodeResponse(true, "ゴール済みです。", row.GoaledAt.Value.ToString("yyyy/MM/dd HH:mm:ss")));
+    }
 
     private async Task<HashSet<long>> GetRequiredSpotIdsAsync(long eventId)
     {
@@ -312,6 +190,173 @@ public class TotalizeModel : PageModel
             .ToListAsync();
 
         return rows.Select(x => x.EventSpotsId).ToHashSet();
+    }
+
+    private async Task LoadTotalizeAsync()
+    {
+        // スポット一覧
+        var spots = await _db.EventSpots
+            .Where(x => x.EventsId == EventId && (x.IsActive == null || x.IsActive == true))
+            .OrderBy(x => x.SortOrder ?? 0)
+            .ThenBy(x => x.Id)
+            .Select(x => new { x.Id, x.Name })
+            .ToListAsync();
+
+        // 必須スポット（event_rewards(type=1/2, active)に紐づくスポット）
+        var requiredSpotIds = await GetRequiredSpotIdsAsync(EventId);
+
+        Spots = spots
+            .Select(s => new SpotView
+            {
+                SpotId = s.Id,
+                SpotName = s.Name,
+                IsRequired = requiredSpotIds.Contains(s.Id)
+            })
+            .ToList();
+
+        // --------------------
+        // 集計（DB）
+        // --------------------
+
+        // 押印相当：stamps は一意（重複除外済み）
+        var stamps = _db.Stamps
+            .Where(x => x.EventsId == EventId && x.StampedAt != null);
+
+        TotalStampReads = await stamps.CountAsync();
+
+        // 合計（spot別）
+        TotalBySpot = await stamps
+            .GroupBy(x => x.EventSpotsId)
+            .Select(g => new { SpotId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.SpotId, x => x.Count);
+
+        // 毎時（spot別）
+        // var stampHourRows = await stamps
+        //     .GroupBy(x => new { x.EventSpotsId, Hour = TruncToHour(x.StampedAt!.Value) })
+        //     .Select(g => new { g.Key.EventSpotsId, g.Key.Hour, Count = g.Count() })
+        //     .OrderBy(x => x.EventSpotsId)
+        //     .ThenBy(x => x.Hour)
+        //     .ToListAsync();
+        // var stampHourRows = await stamps
+        //     .Where(x => x.StampedAt != null)
+        //     .GroupBy(x => new
+        //     {
+        //         x.EventSpotsId,
+        //         Y = x.StampedAt!.Value.Year,
+        //         M = x.StampedAt!.Value.Month,
+        //         D = x.StampedAt!.Value.Day,
+        //         H = x.StampedAt!.Value.Hour
+        //     })
+        //     .Select(g => new
+        //     {
+        //         g.Key.EventSpotsId,
+        //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+        //         Count = g.Count()
+        //     })
+        //     .OrderBy(x => x.EventSpotsId)
+        //     .ThenBy(x => x.Hour)
+        //     .ToListAsync();
+        var stampHourRowsRaw = await stamps
+            .Where(x => x.StampedAt != null)
+            .GroupBy(x => new
+            {
+                x.EventSpotsId,
+                Y = x.StampedAt!.Value.Year,
+                M = x.StampedAt!.Value.Month,
+                D = x.StampedAt!.Value.Day,
+                H = x.StampedAt!.Value.Hour
+            })
+            .Select(g => new
+            {
+                g.Key.EventSpotsId,
+                g.Key.Y,
+                g.Key.M,
+                g.Key.D,
+                g.Key.H,
+                Count = g.Count()
+            })
+            .OrderBy(x => x.EventSpotsId)
+            .ThenBy(x => x.Y)
+            .ThenBy(x => x.M)
+            .ThenBy(x => x.D)
+            .ThenBy(x => x.H)
+            .ToListAsync();
+        // ここから先はクライアント側で DateTime を生成
+        var stampHourRows = stampHourRowsRaw.Select(x => new
+        {
+            x.EventSpotsId,
+            Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
+            x.Count
+        }).ToList();
+
+        HourlyBySpot = stampHourRows
+            .GroupBy(x => x.EventSpotsId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count }).ToList()
+            );
+
+        // ゴール人数（合計・毎時）
+        var goals = _db.Goals
+            .Where(x => x.EventsId == EventId && x.GoaledAt != null);
+
+        GoalTotal = await goals.CountAsync();
+
+        // var goalHourRows = await goals
+        //     .GroupBy(x => TruncToHour(x.GoaledAt!.Value))
+        //     .Select(g => new { Hour = g.Key, Count = g.Count() })
+        //     .OrderBy(x => x.Hour)
+        //     .ToListAsync();
+        // var goalHourRows = await goals
+        //     .Where(x => x.GoaledAt != null)
+        //     .GroupBy(x => new
+        //     {
+        //         Y = x.GoaledAt!.Value.Year,
+        //         M = x.GoaledAt!.Value.Month,
+        //         D = x.GoaledAt!.Value.Day,
+        //         H = x.GoaledAt!.Value.Hour
+        //     })
+        //     .Select(g => new
+        //     {
+        //         Hour = new DateTime(g.Key.Y, g.Key.M, g.Key.D, g.Key.H, 0, 0),
+        //         Count = g.Count()
+        //     })
+        //     .OrderBy(x => x.Hour)
+        //     .ToListAsync();
+        // GoalsByHour = goalHourRows
+        //     .Select(x => new HourCountRow { Hour = x.Hour, Count = x.Count })
+        //     .ToList();
+
+        var goalHourRowsRaw = await goals
+            .Where(x => x.GoaledAt != null)
+            .GroupBy(x => new
+            {
+                Y = x.GoaledAt!.Value.Year,
+                M = x.GoaledAt!.Value.Month,
+                D = x.GoaledAt!.Value.Day,
+                H = x.GoaledAt!.Value.Hour
+            })
+            .Select(g => new
+            {
+                g.Key.Y,
+                g.Key.M,
+                g.Key.D,
+                g.Key.H,
+                Count = g.Count()
+            })
+            .OrderBy(x => x.Y)
+            .ThenBy(x => x.M)
+            .ThenBy(x => x.D)
+            .ThenBy(x => x.H)
+            .ToListAsync();
+        // DateTime生成はクライアント側
+        GoalsByHour = goalHourRowsRaw
+            .Select(x => new HourCountRow
+            {
+                Hour = new DateTime(x.Y, x.M, x.D, x.H, 0, 0),
+                Count = x.Count
+            })
+            .ToList();
     }
 
 

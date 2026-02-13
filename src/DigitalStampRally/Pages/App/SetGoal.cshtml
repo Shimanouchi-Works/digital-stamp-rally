@@ -245,7 +245,9 @@
     // ゴール済み確認
     (async () => {
         try{
-            const res = await postJson("?handler=Status", { eventId, token, visitorId });
+            const baseUrl = '@Url.Page("/App/SetGoal", null, new { handler = "Status" })';
+            const url = new URL(baseUrl, window.location.origin);
+            const res = await postJson(url, { eventId, token, visitorId });
             if(!res.ok) return;
             const data = await res.json();
             if(data.success && data.goaled){
@@ -276,7 +278,9 @@
         btn.disabled = true;
         msg.textContent = "ゴール処理中…";
 
-        const res = await postJson("?handler=Goal", { eventId, token, visitorId });
+        const baseUrl = '@Url.Page("/App/SetGoal", null, new { handler = "Goal" })';
+        const url = new URL(baseUrl, window.location.origin);
+        const res = await postJson(url, { eventId, token, visitorId });
 
         if(!res.ok){
             btn.disabled = false;

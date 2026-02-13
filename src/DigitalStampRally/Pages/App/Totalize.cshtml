@@ -6,18 +6,6 @@
 }
 
 <div class="container py-4">
-    <div class="mb-3">
-        <h1 class="h4 fw-bold mb-1">集計画面</h1>
-        <div class="text-muted small">
-            @Model.EventTitle
-            @if (Model.ValidFrom != default && Model.ValidTo != default)
-            {
-                <span>
-                    （有効期限：@Model.ValidFrom!.Value.ToString("yyyy/MM/dd HH:mm") ～ @Model.ValidTo!.Value.ToString("yyyy/MM/dd HH:mm")）
-                </span>
-            }
-        </div>
-    </div>
 
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
@@ -56,6 +44,44 @@
 
         return;
     }
+
+    @* 認証後：達成コード検索 *@
+    <div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h6 fw-bold mb-2">達成コード検索</h2>
+
+        <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6">
+            <label class="form-label">達成コード</label>
+            <input id="achievementCode" class="form-control" maxlength="64" />
+        </div>
+        <div class="col-12 col-md-auto">
+            <button id="btnSearchCode" class="btn btn-primary" type="button">検索</button>
+        </div>
+        </div>
+
+        <div id="codeResult" class="mt-3 d-none">
+        <div class="alert alert-info mb-2" id="codeMessage"></div>
+        <div class="d-none" id="codeGoaledWrap">
+            <div class="text-muted small">ゴール日時</div>
+            <div class="fw-bold" id="codeGoaledAt"></div>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="mb-3">
+        <h1 class="h4 fw-bold mb-1">集計画面</h1>
+        <div class="text-muted small">
+            @Model.EventTitle
+            @if (Model.ValidFrom != default && Model.ValidTo != default)
+            {
+                <span>
+                    （有効期限：@Model.ValidFrom!.Value.ToString("yyyy/MM/dd HH:mm") ～ @Model.ValidTo!.Value.ToString("yyyy/MM/dd HH:mm")）
+                </span>
+            }
+        </div>
+    </div>
 
     @* 認証後（集計表示） *@
     <div class="row g-3 mb-3">
@@ -126,66 +152,111 @@
         </div>
     </div>
 
+    @{
+    var collapseId = "goal-hourly-collapse";
+
     <div class="card shadow-sm mb-3">
         <div class="card-body">
-            <h2 class="h6 fw-bold mb-3">毎時 ゴール人数</h2>
 
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>時刻</th>
-                            <th class="text-end" style="width:160px;">人数</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var row in Model.GoalsByHour)
-                    {
-                        <tr>
-                            <td>@row.HourLabel</td>
-                            <td class="text-end">@row.Count</td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            <!-- ヘッダー（クリックで開閉） -->
+            <button type="button"
+                    class="btn btn-link p-0 w-100 text-start text-decoration-none"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#@collapseId"
+                    aria-expanded="false"
+                    aria-controls="@collapseId">
 
-    @foreach (var s in Model.Spots)
-    {
-        <div class="card shadow-sm mb-3">
-            <div class="card-body">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <h2 class="h6 fw-bold mb-0">毎時 読み取り回数：@s.SpotName</h2>
-                    @if (s.IsRequired)
-                    {
-                        <span class="badge text-bg-primary">必須</span>
-                    }
+                <div class="d-flex align-items-center justify-content-between">
+                    <h2 class="h6 fw-bold mb-0">毎時 ゴール人数</h2>
+                    <span class="text-muted small">クリックで開閉</span>
                 </div>
+            </button>
 
-                <div class="table-responsive mt-2">
+            <!-- 折りたたみ本体（デフォルト閉じる） -->
+            <div id="@collapseId" class="collapse mt-3">
+                <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>時刻</th>
-                                <th class="text-end" style="width:160px;">回数</th>
+                                <th class="text-end" style="width:160px;">人数</th>
                             </tr>
                         </thead>
                         <tbody>
-                        @{
-                            var rows = Model.HourlyBySpot.TryGetValue(s.SpotId, out var list) ? list : new List<TotalizeModel.HourCountRow>();
-                        }
-                        @foreach (var r in rows)
+                        @foreach (var row in Model.GoalsByHour)
                         {
                             <tr>
-                                <td>@r.HourLabel</td>
-                                <td class="text-end">@r.Count</td>
+                                <td>@row.HourLabel</td>
+                                <td class="text-end">@row.Count</td>
                             </tr>
                         }
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+        </div>
+    </div>
+    }
+
+
+    @foreach (var s in Model.Spots)
+    {
+        collapseId = $"spot-hourly-{s.SpotId}";
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+
+                <!-- ヘッダー（クリックで開閉） -->
+                <button type="button"
+                        class="btn btn-link p-0 w-100 text-start text-decoration-none"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#@collapseId"
+                        aria-expanded="false"
+                        aria-controls="@collapseId">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h2 class="h6 fw-bold mb-0">毎時 読み取り回数：@s.SpotName</h2>
+                            @if (s.IsRequired)
+                            {
+                                <span class="badge text-bg-primary">必須</span>
+                            }
+                        </div>
+
+                        <span class="text-muted small">
+                            クリックで開閉
+                        </span>
+                    </div>
+                </button>
+
+                <!-- 折りたたみ本体（デフォルト閉じる：show無し） -->
+                <div id="@collapseId" class="collapse mt-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>時刻</th>
+                                    <th class="text-end" style="width:160px;">回数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @{
+                                var rows = Model.HourlyBySpot.TryGetValue(s.SpotId, out var list)
+                                    ? list
+                                    : new List<TotalizeModel.HourCountRow>();
+                            }
+                            @foreach (var r in rows)
+                            {
+                                <tr>
+                                    <td>@r.HourLabel</td>
+                                    <td class="text-end">@r.Count</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
     }
@@ -194,3 +265,50 @@
         <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
     </div>
 </div>
+
+<script>
+(() => {
+  const eventId = "@Model.EventId";
+  const token = "@Model.Token";
+
+  const inp = document.getElementById("achievementCode");
+  const btn = document.getElementById("btnSearchCode");
+  const box = document.getElementById("codeResult");
+  const msg = document.getElementById("codeMessage");
+  const wrap = document.getElementById("codeGoaledWrap");
+  const at = document.getElementById("codeGoaledAt");
+
+  async function search() {
+    const code = (inp.value || "").trim();
+    box.classList.remove("d-none");
+    wrap.classList.add("d-none");
+    msg.textContent = "検索中…";
+
+    @* const url = `?handler=SearchCode&e=${encodeURIComponent(eventId)}&t=${encodeURIComponent(token)}&code=${encodeURIComponent(code)}`; *@
+    const baseUrl = '@Url.Page("/App/Totalize", null, new { handler = "SearchCode" })';
+    const url = new URL(baseUrl, window.location.origin);
+    url.searchParams.set("e", eventId);
+    url.searchParams.set("t", token);
+    url.searchParams.set("code", code);
+    const res = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
+
+    if (!res.ok) {
+      msg.textContent = "通信エラー";
+      return;
+    }
+
+    const data = await res.json();
+    msg.textContent = data.message || "";
+
+    if (data.goaledAt) {
+      wrap.classList.remove("d-none");
+      at.textContent = data.goaledAt;
+    }
+  }
+
+  btn.addEventListener("click", search);
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); search(); }
+  });
+})();
+</script>    

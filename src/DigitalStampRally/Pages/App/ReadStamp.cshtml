@@ -230,7 +230,9 @@
     (async () => {
         try{
             // 1) ゴール済み判定（先に）
-            const statusRes = await postJson("?handler=GoalStatus", { eventId, visitorId });
+            const statusBaseUrl = '@Url.Page("/App/ReadStamp", null, new { handler = "GoalStatus" })';
+            const statusUrl = new URL(statusBaseUrl, window.location.origin);
+            const statusRes = await postJson(statusUrl, { eventId, visitorId });
             if(statusRes.ok){
                 const st = await statusRes.json();
                 if(st.success && st.goaled){
@@ -240,7 +242,9 @@
             }
 
             // 2) サーバーで押印を確定（ここがDB版の本体）
-            const stampRes = await postJson("?handler=Stamp", { eventId, spotId, token, visitorId });
+            const stampBaseUrl = '@Url.Page("/App/ReadStamp", null, new { handler = "Stamp" })';
+            const stampUrl = new URL(stampBaseUrl, window.location.origin);
+            const stampRes = await postJson(stampUrl, { eventId, spotId, token, visitorId });
             if(!stampRes.ok){
                 // 通信失敗時：最低限ローカル表示だけ（ただしDB集計は欠ける）
                 const stamps = loadStamps();

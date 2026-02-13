@@ -68,7 +68,7 @@ public class DbEventService
         DateTime endsAt,
         List<(string Name, bool IsRequired)> spots)
     {
-        var eventId = IdUtil.NewId();
+        //var eventId = IdUtil.NewId();
 
         var goalToken = CryptoUtil.NewToken();
         var totalizeToken = CryptoUtil.NewToken();
@@ -76,7 +76,7 @@ public class DbEventService
 
         var ev = new Event
         {
-            Id = eventId,
+            //Id = eventId,
             Title = title,
             Status = 1,
             StartsAt = startsAt,
@@ -87,43 +87,56 @@ public class DbEventService
             TotalizeTokenHash = CryptoUtil.Sha256Hex(totalizeToken),
             TotalizePasswordHash = CryptoUtil.Sha256Hex(totalizePassword)
         };
-        _db.Events.Add(ev);
 
-        var createdSpots = new List<CreatedSpot>();
+        var spotEntities = new List<(EventSpot Entity, string Token, bool IsRequired)>();
         int order = 1;
 
         foreach (var s in spots)
         {
-            var spotId = IdUtil.NewId();
+            //var spotId = IdUtil.NewId();
             var spotToken = CryptoUtil.NewToken();
 
-            _db.EventSpots.Add(new EventSpot
+            var spot = new EventSpot
             {
-                Id = spotId,
-                EventsId = eventId,
+                //Id = spotId,
+                //EventsId = eventId,
                 Name = s.Name,
                 SortOrder = order++,
                 IsActive = true,
                 QrTokenHash = CryptoUtil.Sha256Hex(spotToken),
                 CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
-            });
+                UpdatedAt = DateTime.Now,
 
-            createdSpots.Add(new CreatedSpot(spotId, s.Name, spotToken, s.IsRequired));
+                Events = ev
+            };
+
+            spotEntities.Add((spot, spotToken, s.IsRequired));
+            _db.EventSpots.Add(spot);
+
+            //createdSpots.Add(new CreatedSpot(spotId, s.Name, spotToken, s.IsRequired));
         }
 
         // 必須スポットを reward_required_spots に入れる（event_rewards type=1 を1件作る）
-        var rewardId = IdUtil.NewId();
-        _db.EventRewards.Add(new EventReward
+        //var rewardId = IdUtil.NewId();
+        var reward = new EventReward
         {
-            Id = rewardId,
-            EventsId = eventId,
+            //Id = rewardId,
+            //EventsId = eventId,
             Title = "必須スポット達成",
             Type = 1,
             IsActive = true,
             CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
-        });
+            UpdatedAt = DateTime.Now,
+
+            Events = ev
+        };
+        _db.EventRewards.Add(reward);
+
+        // join（shadow entityを使うなら、Idではなく「参照で結べる形」にしたいが、
+        // 今のDictionary方式はIdが必要になりがちなので、ここは SaveChanges後に入れるのが安全）
+        _db.Events.Add(ev);
+
+        await _db.SaveChangesAsync();
 
         // foreach (var s in createdSpots.Where(x => x.IsRequired))
         // {
@@ -135,20 +148,23 @@ public class DbEventService
         //         ["EventSpotsEventsId"] = eventId
         //     });
         // }
-        foreach (var s in createdSpots.Where(x => x.IsRequired))
+        foreach (var x in spotEntities.Where(x => x.IsRequired))
         {
             _db.Set<Dictionary<string, object>>("RewardRequiredSpot").Add(new Dictionary<string, object>
             {
-                ["EventRewardsId"] = rewardId,
-                ["EventRewardsEventsId"] = eventId,
-                ["EventSpotsId"] = s.SpotId,          // ← ここは s.SpotId じゃなく DBのID（long）にするのが基本
-                ["EventSpotsEventsId"] = eventId
+                ["EventRewardsId"] = reward.Id,
+                ["EventRewardsEventsId"] = ev.Id,
+                ["EventSpotsId"] = x.Entity.Id,          // ← ここは x.Entity.Id じゃなく DBのID（long）にするのが基本
+                ["EventSpotsEventsId"] = ev.Id
             });
         }
-
         await _db.SaveChangesAsync();
 
-        return new CreateEventResult(eventId, goalToken, totalizeToken, totalizePassword, createdSpots);
+        var createdSpots = spotEntities
+            .Select(x => new CreatedSpot(x.Entity.Id, x.Entity.Name, x.Token, x.IsRequired))
+            .ToList();
+
+        return new CreateEventResult(ev.Id, goalToken, totalizeToken, totalizePassword, createdSpots);
     }
 
     public Task<bool> ValidateTotalizeTokenAsync(long eventId, string rawToken)

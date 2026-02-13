@@ -146,6 +146,12 @@ public class CreateNewModel : PageModel
             if (!ModelState.IsValid)
                 return Page();
 
+            if (!Input.AgreeToTerms)
+            {
+                ModelState.AddModelError("", "利用規約への同意が必要です。");
+                return Page();
+            }
+
             // Spots追加バリデーション（空・重複）
             var cleaned = Input.Spots
                 .Select(s => (s.SpotName ?? "").Trim())
@@ -580,7 +586,7 @@ public class CreateNewModel : PageModel
                             r.Item().Text(project.TotalizePassword).FontSize(18).SemiBold();
 
                             r.Item().PaddingTop(10).Text($"有効期限：{project.ValidFrom:yyyy/MM/dd HH:mm} ～ {project.ValidTo:yyyy/MM/dd HH:mm}");
-                            r.Item().PaddingTop(8).Text("※ パスワードは後から変更可能（実装予定）").FontColor(Colors.Grey.Darken2);
+                            // r.Item().PaddingTop(8).Text("※ パスワードは後から変更可能（実装予定）").FontColor(Colors.Grey.Darken2);
                         });
                     });
                 });
@@ -864,6 +870,8 @@ public class CreateNewModel : PageModel
         public List<SpotInputModel> Spots { get; set; } = new() { new SpotInputModel() };
 
         public string? LoadToken { get; set; }
+
+        public bool AgreeToTerms { get; set; }
     }
 
     public class SpotInputModel

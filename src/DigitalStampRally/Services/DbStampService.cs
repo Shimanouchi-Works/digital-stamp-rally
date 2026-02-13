@@ -65,7 +65,7 @@ public class DbStampService
         // 無ければ作成
         s = new ParticipantSession
         {
-            Id = IdUtil.NewId(),
+            //Id = IdUtil.NewId(),
             EventsId = eventId,
             SessionKey = sessionKey,
             FirstSeenAt = DateTime.Now,
@@ -118,7 +118,7 @@ public class DbStampService
 
         _db.Goals.Add(new Goal
         {
-            Id = IdUtil.NewId(),
+            //Id = IdUtil.NewId(),
             EventsId = eventId,
             ParticipantSessionsId = sessionId,
             GoaledAt = DateTime.Now,
@@ -139,7 +139,7 @@ public class DbStampService
         {
             _db.StampScanLogs.Add(new StampScanLog
             {
-                Id = IdUtil.NewId(),
+                //Id = IdUtil.NewId(),
                 EventsId = eventId,
                 EventSpotsId = spotId,
                 EventSpotsEventsId = eventId,
@@ -161,7 +161,7 @@ public class DbStampService
 
         _db.StampScanLogs.Add(new StampScanLog
         {
-            Id = IdUtil.NewId(),
+            //Id = IdUtil.NewId(),
             EventsId = eventId,
             EventSpotsId = spotId,
             EventSpotsEventsId = eventId,
@@ -181,7 +181,7 @@ public class DbStampService
 
         _db.Stamps.Add(new Stamp
         {
-            Id = IdUtil.NewId(),
+            //Id = IdUtil.NewId(),
             EventsId = eventId,
             EventSpotsId = spotId,
             EventSpotsEventsId = eventId,
@@ -222,7 +222,7 @@ public class DbStampService
 
         _db.Goals.Add(new Goal
         {
-            Id = IdUtil.NewId(),
+            //Id = IdUtil.NewId(),
             EventsId = eventId,
             ParticipantSessionsId = sessionId,
             GoaledAt = null, // ここがポイント（ゴール確定は SetGoal 側で）
@@ -252,7 +252,7 @@ public class DbStampService
             var code = Random.Shared.Next(0, 100_000_000).ToString("D8");
             g = new Goal
             {
-                Id = IdUtil.NewId(),
+                //Id = IdUtil.NewId(),
                 EventsId = eventId,
                 ParticipantSessionsId = sessionId,
                 AchievementCode = code,
