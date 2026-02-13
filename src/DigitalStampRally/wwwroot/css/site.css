@@ -90,10 +90,31 @@ body{
 }
 
 /* ---- Small helpers ---- */
-.badge{
+.badge-primary {
+  display: inline-block;
+  background-color: #2563eb;
+  color: #ffffff;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
 }
+
+.badge-secondary {
+  display: inline-block;
+  background-color: #fb923c;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+
 .text-muted{ color: var(--muted) !important; }
 
 .logo-text-wrap {

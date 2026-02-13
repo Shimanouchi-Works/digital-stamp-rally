@@ -489,6 +489,7 @@ public class CreateNewModel : PageModel
             foreach (var spot in project.Spots)
             {
                 var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
+                _logger.LogInformation("Generating sopt PDF with URL: {Url}", url);
                 var qrPng = BuildQrPng(url);
 
                 container.Page(page =>

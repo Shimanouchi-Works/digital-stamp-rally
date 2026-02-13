@@ -155,7 +155,9 @@ public class TotalizeModel : PageModel
         if (!authed)
             return new JsonResult(new SearchCodeResponse(false, "未認証です。先にパスワード認証してください。", null));
 
-        var c = (code ?? "").Trim();
+        var c = (code ?? "")
+                    .Trim()
+                    .Replace("-", "");
         if (string.IsNullOrWhiteSpace(c))
             return new JsonResult(new SearchCodeResponse(false, "達成コードを入力してください。", null));
 

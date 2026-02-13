@@ -42,7 +42,7 @@
 
             <hr class="my-3" />
 
-            <div class="mb-2 small text-muted">収集したスタンプ（この端末）</div>
+            <div class="mb-2 small text-muted">収集したスタンプ</div>
             <ul class="list-group" id="stamp-list"></ul>
 
             <div class="mt-3">
@@ -133,18 +133,22 @@
     }
 
     function getVisitorId(){
-        let v = localStorage.getItem(KEY_VISITOR);
-        if(!v){
-            v = uuidv4();
-            localStorage.setItem(KEY_VISITOR, v);
+        try{
+            let v = localStorage.getItem(KEY_VISITOR);
+            if(!v){
+                v = uuidv4();
+                localStorage.setItem(KEY_VISITOR, v);
+            }
+            return v;
+        } catch (e) {
+            return uuidv4();
         }
-        return v;
     }
 
     function loadStamps(){
-        const raw = localStorage.getItem(KEY_STAMPS);
-        if(!raw) return {};
         try{
+            const raw = localStorage.getItem(KEY_STAMPS);
+            if(!raw) return {};
             const obj = JSON.parse(raw);
             return (obj && typeof obj === "object") ? obj : {};
         }catch{
@@ -195,7 +199,7 @@
                             <div class="small text-muted">${formatJst(e.ts)}</div>`;
 
             const badge = document.createElement("span");
-            badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
+            badge.className = (isRequired(e.sid) ? "badge-primary" : "badge-secondary");
             badge.textContent = isRequired(e.sid) ? "必須" : "任意";
 
             li.appendChild(left);

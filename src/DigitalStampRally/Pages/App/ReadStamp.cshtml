@@ -34,8 +34,8 @@
                     <div class="text-muted small">今回読み取った掲示場所</div>
                     <div class="h5 fw-bold mb-0">@Model.SpotName</div>
                     <div class="mt-2">
-                        <span id="badge-duplicate" class="badge text-bg-warning d-none">読み取り済み</span>
-                        <span id="badge-new" class="badge text-bg-success d-none">新規</span>
+                        <span id="badge-duplicate" class="badge-secondary d-none">読み取り済み</span>
+                        <span id="badge-new" class="badge-primary d-none">新規</span>
                     </div>
                 </div>
                 <div class="text-end">
@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    @* <div class="card shadow-sm">
         <div class="card-body">
             <div class="d-flex align-items-center justify-content-between">
                 <h2 class="h6 fw-bold mb-0">達成コード</h2>
@@ -76,7 +76,7 @@
                 <div class="text-muted small" id="achievement-hint"></div>
             </div>
         </div>
-    </div>
+    </div> *@
 
     @* <div class="mt-3 d-flex gap-2">
         <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
@@ -123,27 +123,34 @@
     }
 
     function getVisitorId(){
-        let v = localStorage.getItem(KEY_VISITOR);
-        if(!v){
-            v = uuidv4();
-            localStorage.setItem(KEY_VISITOR, v);
+        try{
+            let v = localStorage.getItem(KEY_VISITOR);
+            if(!v){
+                v = uuidv4();
+                localStorage.setItem(KEY_VISITOR, v);
+            }
+            return v;
+        } catch (e) {
+            return uuidv4();
         }
-        return v;
     }
 
     function loadStamps(){
-        const raw = localStorage.getItem(KEY_STAMPS);
-        if(!raw) return {};
         try{
+            const raw = localStorage.getItem(KEY_STAMPS);
+            if(!raw) return {};
             const obj = JSON.parse(raw);
             return (obj && typeof obj === "object") ? obj : {};
-        }catch{
+        } catch (e) {
             return {};
         }
     }
 
     function saveStamps(stamps){
-        localStorage.setItem(KEY_STAMPS, JSON.stringify(stamps));
+        try{
+            localStorage.setItem(KEY_STAMPS, JSON.stringify(stamps));
+        } catch (e) {
+        }
     }
 
     function isRequired(id){
@@ -191,7 +198,7 @@
                             <div class="small text-muted">${formatJst(e.ts)}</div>`;
 
             const badge = document.createElement("span");
-            badge.className = "badge " + (isRequired(e.sid) ? "text-bg-primary" : "text-bg-secondary");
+            badge.className = (isRequired(e.sid) ? "badge-primary" : "badge-secondary");
             badge.textContent = isRequired(e.sid) ? "必須" : "任意";
 
             li.appendChild(left);
@@ -249,13 +256,13 @@
                 // 通信失敗時：最低限ローカル表示だけ（ただしDB集計は欠ける）
                 const stamps = loadStamps();
                 renderStampList(stamps);
-                document.getElementById("achievement-hint").textContent = "通信に失敗しました。電波状況をご確認ください。";
+                @* document.getElementById("achievement-hint").textContent = "通信に失敗しました。電波状況をご確認ください。"; *@
                 return;
             }
 
             const stampData = await stampRes.json();
             if(!stampData.success){
-                document.getElementById("achievement-hint").textContent = stampData.message || "処理に失敗しました。";
+                @* document.getElementById("achievement-hint").textContent = stampData.message || "処理に失敗しました。"; *@
                 return;
             }
 
@@ -288,29 +295,29 @@
             // 3) 達成コード（必須が0なら常に達成）
             const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
 
-            const codeEl = document.getElementById("achievement-code");
-            const hintEl = document.getElementById("achievement-hint");
-            const badgeAch = document.getElementById("badge-achieved");
+            @* const codeEl = document.getElementById("achievement-code"); *@
+            @* const hintEl = document.getElementById("achievement-hint"); *@
+            @* const badgeAch = document.getElementById("badge-achieved"); *@
 
             if(!achieved){
-                hintEl.textContent = "必須スタンプをすべて集めると表示されます。";
+                @* hintEl.textContent = "必須スタンプをすべて集めると表示されます。"; *@
                 return;
             }
 
             const res = await postJson("?handler=Achievement", { eventId, visitorId });
             if(!res.ok){
-                hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。";
+                @* hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。"; *@
                 return;
             }
             const data = await res.json();
             if(!data.success){
-                hintEl.textContent = data.message || "まだ条件を満たしていません。";
+                @* hintEl.textContent = data.message || "まだ条件を満たしていません。"; *@
                 return;
             }
 
-            badgeAch.classList.remove("d-none");
-            codeEl.textContent = formatAchievementCode(data.code);
-            hintEl.textContent = "主催者の集計画面でこのコードを照会できます。";
+            @* badgeAch.classList.remove("d-none"); *@
+            @* codeEl.textContent = formatAchievementCode(data.code); *@
+            @* hintEl.textContent = "主催者の集計画面でこのコードを照会できます。"; *@
         }finally{
             loader.remove(); // 完全に削除
         }
