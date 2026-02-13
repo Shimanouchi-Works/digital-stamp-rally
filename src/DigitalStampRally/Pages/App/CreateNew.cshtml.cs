@@ -710,10 +710,23 @@ public class CreateNewModel : PageModel
                         Step("5", "画面が「ゴール済みです」となったことを主催者が確認し、景品等をお渡しください。");
 
                     });
-
-                    col.Item().PaddingTop(16).Text("注意").FontSize(14).SemiBold();
-                    col.Item().PaddingTop(6).Text("・ゴールすると以後その端末ではスタンプ読み取りができません。");
-                    col.Item().Text("・スタンプは全て同じ端末（同じブラウザ）で集めてください。");
+                    {
+                        void Bullet(IContainer container, string text)
+                        {
+                            container.Row(row =>
+                            {
+                                row.ConstantItem(16).Text("・"); // 記号部分の幅を固定
+                                row.RelativeItem().Text(text);
+                            });
+                        }
+                        col.Item().PaddingTop(16).Text("注意").FontSize(14).SemiBold();
+                        col.Item().PaddingTop(6).Element(c =>
+                            Bullet(c, "ゴールすると以後その端末ではスタンプ読み取りができません。"));
+                        col.Item().Element(c =>
+                            Bullet(c, "スタンプは全て同じ端末（同じブラウザ）で集めてください。"));
+                        col.Item().Element(c =>
+                            Bullet(c, "本サービスは簡易的な仕組みのため、状況によっては同一人物が複数回ゴールできる場合があります。厳密な管理が必要な場合は、主催者様にて氏名確認等の対応をお願いいたします。"));
+                    }
 
                     col.Item().PaddingTop(14).Text("有効期限").FontSize(14).SemiBold();
                     col.Item().Text($"{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
