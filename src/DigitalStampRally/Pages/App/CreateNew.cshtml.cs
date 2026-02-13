@@ -193,10 +193,10 @@ public class CreateNewModel : PageModel
             // (1) ユーザーがアップロードした画像
             if (Input.EventImageFile != null && Input.EventImageFile.Length > 0)
             {
-                const long maxBytes = 2 * 1024 * 1024; // 2MB
+                const long maxBytes = DigitalStampRally.Models.AppConst.MaxEventImageBytes;
                 if (Input.EventImageFile.Length > maxBytes)
                 {
-                    ErrorMessage = "イベント画像が大きすぎます（最大 2MB）。";
+                    ErrorMessage = $"イベント画像が大きすぎます（最大 {DigitalStampRally.Models.AppConst.MaxEventImageBytes / 1024 / 1024}MB）。";
                     return Page();
                 }
 
@@ -338,24 +338,24 @@ public class CreateNewModel : PageModel
             }
 
             // project.json（最小 + 画像参照）
-            var export = new StampRallyProjectExport
-            {
-                App = "Qmikke",
-                Format = "stamp-rally-project",
-                Version = 1,
+            // var export = new StampRallyProjectExport
+            // {
+            //     App = "Qmikke",
+            //     Format = "stamp-rally-project",
+            //     Version = 1,
 
-                EventTitle = project.EventTitle,
-                ValidFrom = project.ValidFrom,
-                ValidTo = project.ValidTo,
+            //     EventTitle = project.EventTitle,
+            //     ValidFrom = project.ValidFrom,
+            //     ValidTo = project.ValidTo,
 
-                EventImage = imageRef,
+            //     EventImage = imageRef,
 
-                Spots = project.Spots.Select(s => new SpotExport
-                {
-                    SpotName = s.SpotName,
-                    IsRequired = s.IsRequired
-                }).ToList()
-            };
+            //     Spots = project.Spots.Select(s => new SpotExport
+            //     {
+            //         SpotName = s.SpotName,
+            //         IsRequired = s.IsRequired
+            //     }).ToList()
+            // };
 
             // var json = JsonSerializer.Serialize(export, JsonOptions());
             // AddText(zip, "project.json", json);
@@ -776,8 +776,12 @@ public class CreateNewModel : PageModel
                 {
                     SpotName = s.SpotName,
                     IsRequired = s.IsRequired
-                }).ToList()
+                }).ToList(),
+                CheckCode = null,
             };
+            var payload = JsonSerializer.Serialize(export, ProjectSignatureService.SignJsonOptions);
+            var secret = _config["ProjectExport:HmacSecret"]!;
+            export.CheckCode = ProjectSignatureService.ComputeHmacBase64Url(secret, payload);
 
             var json = JsonSerializer.Serialize(export, JsonOptions());
             AddText(zip, "project.json", json);

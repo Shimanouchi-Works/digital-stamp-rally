@@ -64,6 +64,19 @@
         color: #212529;
         font-weight: 600;
     }
+
+    .badge {
+        display: inline-block;
+        background: #fff;
+        color: #212529;
+        border: 1px solid rgba(0,0,0,.15);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
 </style>
 
 <!-- =========================
@@ -97,7 +110,7 @@
                 <div class="d-flex flex-wrap gap-2">
                     <!-- TODO: 実際の作成開始ページに変更 -->
                     <a class="btn btn-primary btn-lg" href="/App/CreateNew">
-                        今すぐ無料で作る（登録なし）
+                        今すぐ無料で作る（登録不要）
                     </a>
                     <a class="btn btn-outline-secondary btn-lg" href="#howto">
                         使い方を見る
@@ -175,7 +188,7 @@
                     <div class="col-md-6">
                         <div class="lp-card p-3 h-100">
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge text-bg-danger">悩み</span>
+                                <span class="badge">悩み</span>
                                 <strong>紙の台紙が面倒</strong>
                             </div>
                             <p class="mb-0 lp-muted small">
@@ -183,7 +196,7 @@
                             </p>
                             <hr class="my-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge text-bg-success">解決</span>
+                                <span class="badge">解決</span>
                                 <span class="small">QRを読むだけで押印</span>
                             </div>
                         </div>
@@ -192,7 +205,7 @@
                     <div class="col-md-6">
                         <div class="lp-card p-3 h-100">
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge text-bg-danger">悩み</span>
+                                <span class="badge">悩み</span>
                                 <strong>準備時間がない</strong>
                             </div>
                             <p class="mb-0 lp-muted small">
@@ -200,7 +213,7 @@
                             </p>
                             <hr class="my-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge text-bg-success">解決</span>
+                                <span class="badge">解決</span>
                                 <span class="small">入力→QR/PDF出力まで一直線</span>
                             </div>
                         </div>
@@ -209,7 +222,7 @@
                     <div class="col-md-6">
                         <div class="lp-card p-3 h-100">
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge text-bg-danger">悩み</span>
+                                <span class="badge">悩み</span>
                                 <strong>登録があると参加者が減る</strong>
                             </div>
                             <p class="mb-0 lp-muted small">
@@ -217,7 +230,7 @@
                             </p>
                             <hr class="my-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge text-bg-success">解決</span>
+                                <span class="badge">解決</span>
                                 <span class="small">アカウント登録不要</span>
                             </div>
                         </div>
@@ -226,7 +239,7 @@
                     <div class="col-md-6">
                         <div class="lp-card p-3 h-100">
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge text-bg-danger">悩み</span>
+                                <span class="badge">悩み</span>
                                 <strong>予算がない</strong>
                             </div>
                             <p class="mb-0 lp-muted small">
@@ -234,7 +247,7 @@
                             </p>
                             <hr class="my-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge text-bg-success">解決</span>
+                                <span class="badge">解決</span>
                                 <span class="small">何度でも無料で使える</span>
                             </div>
                         </div>
@@ -261,7 +274,7 @@
             <div class="col-md-6 col-lg-3">
                 <div class="lp-card p-3 h-100 bg-white">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="badge text-bg-primary">無料</span>
+                        <span class="badge">無料</span>
                         <span class="small text-secondary">何度でも</span>
                     </div>
                     <h3 class="h5 fw-bold mb-2">何度でも無料</h3>
@@ -276,7 +289,7 @@
             <div class="col-md-6 col-lg-3">
                 <div class="lp-card p-3 h-100 bg-white">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="badge text-bg-success">登録不要</span>
+                        <span class="badge">登録不要</span>
                         <span class="small text-secondary">参加者も</span>
                     </div>
                     <h3 class="h5 fw-bold mb-2">アカウント登録不要</h3>
@@ -289,7 +302,7 @@
             <div class="col-md-6 col-lg-3">
                 <div class="lp-card p-3 h-100 bg-white">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="badge text-bg-dark">小規模向け</span>
+                        <span class="badge">小規模向け</span>
                         <span class="small text-secondary">少人数運営</span>
                     </div>
                     <h3 class="h5 fw-bold mb-2">小規模イベントに最適</h3>
@@ -302,7 +315,7 @@
             <div class="col-md-6 col-lg-3">
                 <div class="lp-card p-3 h-100 bg-white">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="badge text-bg-warning">簡単</span>
+                        <span class="badge">簡単</span>
                         <span class="small text-secondary">数分で</span>
                     </div>
                     <h3 class="h5 fw-bold mb-2">お手軽・数分で作成完了</h3>
@@ -315,7 +328,7 @@
 
         <div class="text-center mt-4">
             <!-- TODO: 実際の作成開始ページに変更 -->
-            <a class="btn btn-primary btn-lg" href="/App/CreateNew">今すぐ無料で作る（登録なし）</a>
+            <a class="btn btn-primary btn-lg" href="/App/CreateNew">今すぐ無料で作る（登録不要）</a>
         </div>
     </div>
 </section>
@@ -540,14 +553,14 @@
                 <div class="col-lg-8">
                     <h2 class="h3 fw-bold mb-2">まずは1回、作ってみるのが一番早いです</h2>
                     <p class="lp-muted mb-0">
-                        登録なし・無料で、すぐに掲示用QR（PDF）まで作れます。<br class="d-none d-md-inline" />
+                        登録不要・無料で、すぐに掲示用QR（PDF）まで作れます。<br class="d-none d-md-inline" />
                         小規模イベントの“準備の手間”を軽くしませんか？
                     </p>
                 </div>
                 <div class="col-lg-4 text-lg-end">
                     <!-- TODO: 実際の作成開始ページに変更 -->
                     <a class="btn btn-primary btn-lg w-100 w-lg-auto" href="/App/CreateNew">
-                        今すぐ無料で作る（登録なし）
+                        今すぐ無料で作る（登録不要）
                     </a>
                     <div class="small text-secondary mt-2">
                         使い方：入力 → PDF出力 → 掲示

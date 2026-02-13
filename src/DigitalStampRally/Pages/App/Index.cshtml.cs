@@ -13,43 +13,49 @@ public class AppIndexModel : PageModel
 {
     private readonly IProjectDraftStore _draftStore;
     private readonly DigitalStampRallyContext _db;
+    private readonly IConfiguration _config;
 
-    public AppIndexModel(IProjectDraftStore draftStore, DigitalStampRallyContext db)
+    public AppIndexModel(
+                IProjectDraftStore draftStore,
+                DigitalStampRallyContext db,
+                IConfiguration config
+                )
     {
         _draftStore = draftStore;
         _db = db;
+        _config = config;
     }
 
     [BindProperty]
     public string? ErrorMessage { get; set; }
 
     // 任意：DB上のイベント一覧を表示したい場合に使う
-    public List<EventSummary> RecentEvents { get; private set; } = new();
+    // public List<EventSummary> RecentEvents { get; private set; } = new();
 
-    public string? LoadedToken { get; set; }
+    // public string? LoadedToken { get; set; }
 
-    public async Task OnGetAsync(string? loaded=null)
+    public async Task OnGetAsync()
     {
         try
         {
-            LoadedToken = loaded;
+            // LoadedToken = loaded;
 
             // IndexでDBを触るのは必須ではありませんが、
             // “DB対応”として「最近のイベント」を表示できるようにしておくと運用が楽です。
             // 公開中(1)を優先して新しい順に20件表示。
-            RecentEvents = await _db.Events
-                .OrderByDescending(e => e.CreatedAt)
-                .Select(e => new EventSummary
-                {
-                    Id = e.Id,
-                    Title = e.Title,
-                    Status = e.Status,
-                    StartsAt = e.StartsAt,
-                    EndsAt = e.EndsAt,
-                    CreatedAt = e.CreatedAt
-                })
-                .Take(20)
-                .ToListAsync();
+            // RecentEvents = await _db.Events
+            //     .OrderByDescending(e => e.CreatedAt)
+            //     .Select(e => new EventSummary
+            //     {
+            //         Id = e.Id,
+            //         Title = e.Title,
+            //         Status = e.Status,
+            //         StartsAt = e.StartsAt,
+            //         EndsAt = e.EndsAt,
+            //         CreatedAt = e.CreatedAt
+            //     })
+            //     .Take(20)
+            //     .ToListAsync();
         }
         catch (Exception ex)
         {
@@ -137,7 +143,7 @@ public class AppIndexModel : PageModel
             const long maxBytes = 30 * 1024 * 1024; // 30MB
             if (projectFile.Length > maxBytes)
             {
-                ErrorMessage = "ファイルサイズが大きすぎます（最大 30MB）。";
+                ErrorMessage = "ファイルサイズが大きすぎます。";
                 await OnGetAsync();
                 return Page();
             }
@@ -160,7 +166,7 @@ public class AppIndexModel : PageModel
                 var qmkpjEntry = outer.GetEntry("project.qmkpj");
                 if (qmkpjEntry == null)
                 {
-                    ErrorMessage = "project.qmkpj が見つかりません。古い形式のZIP、またはこのアプリのファイルではない可能性があります。";
+                    ErrorMessage = "ファイル形式が正しくありません(0001)。";//"project.qmkpj が見つかりません。古い形式のZIP、またはこのアプリのファイルではない可能性があります。";
                     await OnGetAsync();
                     return Page();
                 }
@@ -169,14 +175,14 @@ public class AppIndexModel : PageModel
                 return await LoadFromQmkpjStreamAsync(qmkpjStream);
             }
 
-            ErrorMessage = "拡張子が .zip または .qmkpj のファイルを選択してください。";
+            ErrorMessage = "ファイル形式が正しくありません(0002)。";//"拡張子が .zip または .qmkpj のファイルを選択してください。";
             await OnGetAsync();
             return Page();
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex);
-            ErrorMessage = "不明なエラー";
+            ErrorMessage = "不明なエラー(001)";
             return Page();
         }
     }
@@ -197,7 +203,7 @@ public class AppIndexModel : PageModel
             var jsonEntry = zip.GetEntry("project.json");
             if (jsonEntry == null)
             {
-                ErrorMessage = "project.json が見つかりません。このアプリの project.qmkpj ではない可能性があります。";
+                ErrorMessage = "ファイル形式が正しくありません(0003)。";//"project.json が見つかりません。このアプリの project.qmkpj ではない可能性があります。";
                 await OnGetAsync();
                 return Page();
             }
@@ -211,11 +217,26 @@ public class AppIndexModel : PageModel
             manifest = JsonSerializer.Deserialize<StampRallyProjectExport>(json, JsonOptions())
                     ?? throw new Exception("project.json parse failed");
 
+            var checkCode = manifest.CheckCode;
+            manifest.CheckCode = null;
+            var payload = JsonSerializer.Serialize(manifest, ProjectSignatureService.SignJsonOptions);
+            var secret = _config["ProjectExport:HmacSecret"]!;
+            var expected = ProjectSignatureService.ComputeHmacBase64Url(secret, payload);
+            if (checkCode == null || !ProjectSignatureService.SecureEquals(checkCode, expected))
+            {
+                //throw new Exception("project.json が改ざんされています。");
+                ErrorMessage = "ファイル形式が正しくありません(0004)。";//"このアプリが出力したプロジェクトファイルではありません。";
+                await OnGetAsync();
+                return Page();
+            }
+            
+
+
             if (!string.Equals(manifest.App, "Qmikke", StringComparison.Ordinal) ||
                 !string.Equals(manifest.Format, "stamp-rally-project", StringComparison.Ordinal) ||
                 manifest.Version != 1)
             {
-                ErrorMessage = "このアプリが出力したプロジェクトファイルではありません。";
+                ErrorMessage = "ファイル形式が正しくありません(0005)。";//"このアプリが出力したプロジェクトファイルではありません。";
                 await OnGetAsync();
                 return Page();
             }
@@ -226,15 +247,14 @@ public class AppIndexModel : PageModel
                 var imgEntry = zip.GetEntry(manifest.EventImage.FileName);
                 if (imgEntry == null)
                 {
-                    ErrorMessage = "イベント画像が project.qmkpj 内に見つかりません（欠損の可能性があります）。";
+                    ErrorMessage = "ファイル形式が正しくありません(0006)。";//"イベント画像が project.qmkpj 内に見つかりません（欠損の可能性があります）。";
                     await OnGetAsync();
                     return Page();
                 }
 
-                const long maxImageBytes = 2 * 1024 * 1024;
-                if (imgEntry.Length > maxImageBytes)
+                if (imgEntry.Length > DigitalStampRally.Models.AppConst.MaxEventImageBytes)
                 {
-                    ErrorMessage = "イベント画像が大きすぎます（最大 2MB）。";
+                    ErrorMessage = $"イベント画像が大きすぎます（最大 {DigitalStampRally.Models.AppConst.MaxEventImageBytes / 1024 / 1024}MB）。";
                     await OnGetAsync();
                     return Page();
                 }
@@ -247,7 +267,7 @@ public class AppIndexModel : PageModel
                 var sha = ComputeSha256Hex(imageBytes);
                 if (!string.Equals(sha, manifest.EventImage.Sha256, StringComparison.OrdinalIgnoreCase))
                 {
-                    ErrorMessage = "イベント画像の整合性チェックに失敗しました（改ざん/破損の可能性があります）。";
+                    ErrorMessage = "ファイル形式が正しくありません(0007)。";//"イベント画像の整合性チェックに失敗しました（改ざん/破損の可能性があります）。";
                     await OnGetAsync();
                     return Page();
                 }
@@ -258,7 +278,7 @@ public class AppIndexModel : PageModel
         }
         catch
         {
-            ErrorMessage = "project.qmkpj の読み取りに失敗しました。ファイルが壊れている可能性があります。";
+            ErrorMessage = "不明なエラー(001)";//"ファイルの読み取りに失敗しました。ファイルが壊れている可能性があります。";
             await OnGetAsync();
             return Page();
         }

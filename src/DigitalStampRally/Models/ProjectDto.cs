@@ -13,6 +13,8 @@ public class StampRallyProjectExport
     public DateTime ValidTo { get; set; }
 
     public List<SpotExport> Spots { get; set; } = new();
+
+    public string? CheckCode { get; set; }   // base64url(HMAC-SHA256)
 }
 
 public class SpotExport
