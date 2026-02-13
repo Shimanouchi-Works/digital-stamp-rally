@@ -33,7 +33,7 @@
                 <h2 class="h5 fw-bold mb-3">イベント基本情報</h2>
 
                 <div class="mb-3">
-                    <label class="form-label">行事タイトル</label>
+                    <label class="form-label">行事タイトル(入力必須)</label>
                     <input class="form-control" asp-for="Input.EventTitle" maxlength="80" required />
                     <span class="text-danger small" asp-validation-for="Input.EventTitle"></span>
                 </div>
@@ -140,7 +140,7 @@
                                         </label>
                                     </div>
                                 </th>
-                                <th>掲示場所名</th>
+                                <th>掲示場所名(入力必須)</th>
                                 <th style="width:90px;">
                                 </th>
                             </tr>
@@ -282,11 +282,13 @@
                     if (!selectedDates || selectedDates.length === 0) return;
 
                     const fromDate = selectedDates[0];
+                    // ＋1時間した日時を作る
+                    const plusOneHour = new Date(fromDate.getTime() + 60 * 60 * 1000);
 
                     // (2) 開始が選ばれたら：終了が開始より過去なら、終了=開始に自動補正
                     const toDate = fpTo.selectedDates && fpTo.selectedDates[0];
                     if (!toDate || toDate < fromDate) {
-                      fpTo.setDate(fromDate, true); // true = input値更新 + onChange発火
+                      fpTo.setDate(plusOneHour, true); // true = input値更新 + onChange発火
                     }
 
                     // 終了の最小値も開始に合わせておく（UI上もミスりにくくなる）
