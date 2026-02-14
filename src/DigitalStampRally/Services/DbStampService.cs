@@ -48,13 +48,15 @@ public class DbStampService
     public async Task<ParticipantSession> GetOrCreateSessionAsync(
         long eventId, string sessionKey, string userAgent, string ipHash)
     {
+        var now = DateTime.Now;
+
         // まず通常の取得
         var s = await _db.ParticipantSessions
             .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
 
         if (s != null)
         {
-            s.LastSeenAt = DateTime.Now;
+            s.LastSeenAt = now;
             s.UserAgent = userAgent;
             // ipHashも更新したいならここで
             // s.IpHash = ipHash;
@@ -68,8 +70,8 @@ public class DbStampService
             //Id = IdUtil.NewId(),
             EventsId = eventId,
             SessionKey = sessionKey,
-            FirstSeenAt = DateTime.Now,
-            LastSeenAt = DateTime.Now,
+            FirstSeenAt = now,
+            LastSeenAt = now,
             UserAgent = userAgent,
             IpHash = ipHash,
             IsBlocked = false
@@ -90,7 +92,7 @@ public class DbStampService
 
             if (existing != null)
             {
-                existing.LastSeenAt = DateTime.Now;
+                existing.LastSeenAt = now;
                 existing.UserAgent = userAgent;
                 // existing.IpHash = ipHash;
                 await _db.SaveChangesAsync();
@@ -112,18 +114,20 @@ public class DbStampService
     public async Task<string> EnsureGoalAsync(long eventId, long sessionId)
     {
         var existing = await _db.Goals.FirstOrDefaultAsync(g => g.EventsId == eventId && g.ParticipantSessionsId == sessionId);
-        if (existing != null) return existing.AchievementCode;
+        if (existing != null && existing.AchievementCode != null ) return existing.AchievementCode!;
 
         var code = Random.Shared.Next(0, 100_000_000).ToString("D8");
+
+        var now = DateTime.Now;
 
         _db.Goals.Add(new Goal
         {
             //Id = IdUtil.NewId(),
             EventsId = eventId,
             ParticipantSessionsId = sessionId,
-            GoaledAt = DateTime.Now,
+            GoaledAt = now,
             AchievementCode = code,
-            CreatedAt = DateTime.Now
+            CreatedAt = now
         });
 
         await _db.SaveChangesAsync();
@@ -133,6 +137,7 @@ public class DbStampService
     public async Task<(bool Stamped, int Result)> TryStampAsync(long eventId, long spotId, long sessionId, DateTime at, string rawToken)
     {
         var tokenHash = CryptoUtil.Sha256Hex(rawToken);
+        var now = DateTime.Now;
 
         // 既にゴール済みならブロック（result=5などにしてもOK。ここでは 5:ゴール済み）
         if (await IsGoaledAsync(eventId, sessionId))
@@ -148,7 +153,7 @@ public class DbStampService
                 ScannedAt = at,
                 RawTokenHash = tokenHash,
                 Result = 5,
-                CreatedAt = DateTime.Now
+                CreatedAt = now
             });
             await _db.SaveChangesAsync();
             return (false, 5);
@@ -170,7 +175,7 @@ public class DbStampService
             ScannedAt = at,
             RawTokenHash = tokenHash,
             Result = exists ? 1 : 0,
-            CreatedAt = DateTime.Now
+            CreatedAt = now
         });
 
         if (exists)
@@ -215,10 +220,11 @@ public class DbStampService
         var existing = await _db.Goals
             .FirstOrDefaultAsync(g => g.EventsId == eventId && g.ParticipantSessionsId == sessionId);
 
-        if (existing != null)
-            return existing.AchievementCode;
+        if (existing != null & existing!.AchievementCode != null)
+            return existing.AchievementCode!;
 
         var code = Random.Shared.Next(0, 100_000_000).ToString("D8");
+        var now = DateTime.Now;
 
         _db.Goals.Add(new Goal
         {
@@ -227,7 +233,7 @@ public class DbStampService
             ParticipantSessionsId = sessionId,
             GoaledAt = null, // ここがポイント（ゴール確定は SetGoal 側で）
             AchievementCode = code,
-            CreatedAt = DateTime.Now
+            CreatedAt = now
         });
 
         await _db.SaveChangesAsync();
@@ -242,12 +248,12 @@ public class DbStampService
             g.GoaledAt != null);
 
     // ゴール確定：達成コードが無ければ作り、goaled_at を埋める
-    public async Task<string> EnsureGoaledAsync(long eventId, long sessionId)
+    public async Task<string> EnsureGoaledAsync(long eventId, long sessionId, DateTime at)
     {
         var g = await _db.Goals
             .FirstOrDefaultAsync(x => x.EventsId == eventId && x.ParticipantSessionsId == sessionId);
 
-        if (g == null)
+        if (g == null || g.AchievementCode == null )
         {
             var code = Random.Shared.Next(0, 100_000_000).ToString("D8");
             g = new Goal
@@ -256,12 +262,12 @@ public class DbStampService
                 EventsId = eventId,
                 ParticipantSessionsId = sessionId,
                 AchievementCode = code,
-                CreatedAt = DateTime.Now
+                CreatedAt = at
             };
             _db.Goals.Add(g);
         }
 
-        g.GoaledAt ??= DateTime.Now;
+        g.GoaledAt ??= at;
         await _db.SaveChangesAsync();
         return g.AchievementCode;
     }

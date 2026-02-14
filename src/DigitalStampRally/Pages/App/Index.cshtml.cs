@@ -38,6 +38,7 @@ public class AppIndexModel : PageModel
     {
         try
         {
+            await Task.CompletedTask;
             // LoadedToken = loaded;
 
             // IndexでDBを触るのは必須ではありませんが、

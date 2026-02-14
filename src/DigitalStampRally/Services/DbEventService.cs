@@ -74,6 +74,7 @@ public class DbEventService
         var totalizeToken = CryptoUtil.NewToken();
         var totalizePassword = CryptoUtil.NewPassword();
 
+        var now = DateTime.Now;
         var ev = new Event
         {
             //Id = eventId,
@@ -81,8 +82,8 @@ public class DbEventService
             Status = 1,
             StartsAt = startsAt,
             EndsAt = endsAt,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now,
+            CreatedAt = now,
+            UpdatedAt = now,
             GoalTokenHash = CryptoUtil.Sha256Hex(goalToken),
             TotalizeTokenHash = CryptoUtil.Sha256Hex(totalizeToken),
             TotalizePasswordHash = CryptoUtil.Sha256Hex(totalizePassword)
@@ -104,8 +105,8 @@ public class DbEventService
                 SortOrder = order++,
                 IsActive = true,
                 QrTokenHash = CryptoUtil.Sha256Hex(spotToken),
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now,
+                CreatedAt = now,
+                UpdatedAt = now,
 
                 Events = ev
             };
@@ -125,8 +126,8 @@ public class DbEventService
             Title = "必須スポット達成",
             Type = 1,
             IsActive = true,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now,
+            CreatedAt = now,
+            UpdatedAt = now,
 
             Events = ev
         };

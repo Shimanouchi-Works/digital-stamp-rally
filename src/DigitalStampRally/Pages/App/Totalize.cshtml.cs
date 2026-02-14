@@ -93,7 +93,7 @@ public class TotalizeModel : PageModel
         {
             if (e == null || string.IsNullOrWhiteSpace(t))
             {
-                ErrorMessage = "URLの情報が不足しています。";
+                ErrorMessage = "エラーが発生しました(011)。";//"URLの情報が不足しています。";
                 return Page();
             }
 
@@ -103,13 +103,13 @@ public class TotalizeModel : PageModel
             var ev = await _eventService.GetEventAsync(EventId);
             if (ev == null)
             {
-                ErrorMessage = "イベントが見つかりませんでした。";
+                ErrorMessage = "エラーが発生しました(012)。";//"イベントが見つかりませんでした。";
                 return Page();
             }
 
             if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
             {
-                ErrorMessage = "集計画面トークンが無効です。";
+                ErrorMessage = "エラーが発生しました(013)。";//"集計画面トークンが無効です。";
                 return Page();
             }
 
@@ -120,7 +120,7 @@ public class TotalizeModel : PageModel
             // パスワード検証（hash）
             if (string.IsNullOrWhiteSpace(password) || !await _eventService.ValidateTotalizePasswordAsync(EventId, password))
             {
-                AuthErrorMessage = "パスワードが違います。";
+                AuthErrorMessage = "認証できません。";//"パスワードが違います。";
                 return Page();
             }
 
@@ -143,19 +143,28 @@ public class TotalizeModel : PageModel
     public async Task<IActionResult> OnGetSearchCodeAsync(long? e, string? t, string? code)
     {
         if (e == null || string.IsNullOrWhiteSpace(t))
-            return new JsonResult(new SearchCodeResponse(false, "URLの情報が不足しています。", null));
+            return new JsonResult(new SearchCodeResponse(
+                        false,
+                        "エラーが発生しました(021)。",//"URLの情報が不足しています。",
+                        null));
 
         EventId = e.Value;
         Token = t;
 
         // トークン検証（必須）
         if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
-            return new JsonResult(new SearchCodeResponse(false, "集計画面トークンが無効です。", null));
+            return new JsonResult(new SearchCodeResponse(
+                            false,
+                            "エラーが発生しました(022)。",//"集計画面トークンが無効です。",
+                            null));
 
         // 認証済みチェック（Session）
         var authed = HttpContext.Session.GetString($"totalize_auth:{EventId}") == "1";
         if (!authed)
-            return new JsonResult(new SearchCodeResponse(false, "未認証です。先にパスワード認証してください。", null));
+            return new JsonResult(new SearchCodeResponse(
+                            false,
+                            "エラーが発生しました(031)。",//"未認証です。先にパスワード認証してください。",
+                            null));
 
         var c = (code ?? "")
                     .Trim()

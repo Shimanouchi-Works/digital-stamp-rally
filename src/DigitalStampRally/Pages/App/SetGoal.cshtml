@@ -40,23 +40,11 @@
                 </div>
             </div>
 
-            <hr class="my-3" />
 
-            <div class="mb-2 small text-muted">収集したスタンプ</div>
-            <ul class="list-group" id="stamp-list"></ul>
-
-            <div class="mt-3">
-                @if( Model.RequiredSpotIds.Count > 0 )
-                {
-                    <div class="small text-muted">必須スタンプ</div>
-                    <div class="fw-bold">
-                        <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
-                    </div>
-                    <div id="required-hint" class="small text-muted mt-1"></div>
-                }
-            </div>
 
             <hr class="my-3" />
+
+
 
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <button id="btn-goal" class="btn btn-primary" type="button">
@@ -76,6 +64,27 @@
                 <br />・同じ端末（同じブラウザ）で集める必要があります *@
                 注意：ゴールすると以後スタンプ読み取りはできません。
             </div>
+
+
+            <hr class="my-3" />
+
+
+
+            <div class="mt-3">
+                @if( Model.RequiredSpotIds.Count > 0 )
+                {
+                    <div class="small text-muted">必須スタンプ</div>
+                    <div class="fw-bold">
+                        <span id="required-count">0</span> / <span id="required-total">@Model.RequiredSpotIds.Count</span>
+                    </div>
+                    <div id="required-hint" class="small text-muted mt-1"></div>
+                }
+            </div>
+
+            <div class="mb-2 small text-muted">収集したスタンプ</div>
+            <ul class="list-group" id="stamp-list"></ul>
+
+
         </div>
     </div>
 

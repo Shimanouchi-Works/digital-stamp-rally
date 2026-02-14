@@ -105,7 +105,11 @@ public class ReadStampModel : PageModel
     }
 
     // ---- Ajax: 押印（DBで確定）----
+#if DEBUG
+    public async Task<IActionResult> OnPostStampAsync([FromBody] StampRequest req, string? date)
+#else
     public async Task<IActionResult> OnPostStampAsync([FromBody] StampRequest req)
+#endif
     {
         try
         {
@@ -115,12 +119,15 @@ public class ReadStampModel : PageModel
                         message =  "エラーが発生しました(011)。",//"リクエスト不正"
                         });
 
+#if DEBUG
+#else
             // token再検証（直叩き対策）
             if (!await _eventService.ValidateSpotTokenAsync(req.EventId, req.SpotId, req.Token))
                 return new JsonResult(new { 
                         success = false,
                         message = "エラーが発生しました(012)。",//"無効なQRです"
                         });
+#endif
 
             var ua = Request.Headers.UserAgent.ToString();
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
@@ -138,7 +145,18 @@ public class ReadStampModel : PageModel
             if (await _stampService.IsGoaledAsync(req.EventId, session.Id))
                 return new JsonResult(new { success = true, result = 5, stamped = false });
 
-            var (stamped, result) = await _stampService.TryStampAsync(req.EventId, req.SpotId, session.Id, DateTime.Now, req.Token);
+            DateTime stampTime;
+            #if DEBUG
+            stampTime = !string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsed) ? parsed : DateTime.Now;
+            #else
+            stampTime = DateTime.Now;
+            #endif
+            var (stamped, result) = await _stampService.TryStampAsync(
+                            req.EventId,
+                            req.SpotId,
+                            session.Id,
+                            stampTime,
+                            req.Token);
             // result: 0成功 1重複 5ゴール済み（DbStampService側の実装に合わせる）
 
             return new JsonResult(new { success = true, stamped, result });

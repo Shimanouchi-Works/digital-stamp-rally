@@ -119,7 +119,7 @@ public class SetGoalModel : PageModel
                 return new JsonResult(new { success = true, goaled = false });
 
             // ゴール済み時：EnsureGoaledAsync は同じコードを返すので安全
-            var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
+            var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id, DateTime.Now);
             return new JsonResult(new { success = true, goaled = true, code });
         }
         catch (Exception ex)
@@ -131,7 +131,11 @@ public class SetGoalModel : PageModel
     }
 
     // ----- Ajax: ゴール確定 -----
+#if DEBUG
+    public async Task<IActionResult> OnPostGoalAsync([FromBody] GoalRequest req, string? date)
+#else
     public async Task<IActionResult> OnPostGoalAsync([FromBody] GoalRequest req)
+#endif
     {
         try
         {
@@ -141,12 +145,15 @@ public class SetGoalModel : PageModel
                             message = "エラーが発生しました(011)。",//"リクエスト不正" 
                             });
 
+#if DEBUG
+#else
             // token再検証
             if (!await _eventService.ValidateGoalTokenAsync(req.EventId, req.Token))
                 return new JsonResult(new { 
                             success = false, 
                             message = "エラーが発生しました(012)。",//"無効なQRです" 
                             });
+#endif
 
             var ev = await _eventService.GetEventAsync(req.EventId);
             if (ev == null)
@@ -175,7 +182,7 @@ public class SetGoalModel : PageModel
             // 既にゴール済みならその情報を返す
             if (await _stampService.IsGoaledAsync(req.EventId, session.Id))
             {
-                var code0 = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
+                var code0 = await _stampService.EnsureGoaledAsync(req.EventId, session.Id, DateTime.Now);
                 return new JsonResult(new { success = true, code = code0 });
             }
 
@@ -189,7 +196,13 @@ public class SetGoalModel : PageModel
             }
 
             // ゴール確定：goals.goaled_at を埋める（達成コードも返す）
-            var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id);
+            DateTime goalTime;
+            #if DEBUG
+            goalTime = !string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsed) ? parsed : DateTime.Now;
+            #else
+            goalTime = DateTime.Now;
+            #endif
+            var code = await _stampService.EnsureGoaledAsync(req.EventId, session.Id, goalTime);
             return new JsonResult(new { success = true, code });
         }
         catch (Exception ex)

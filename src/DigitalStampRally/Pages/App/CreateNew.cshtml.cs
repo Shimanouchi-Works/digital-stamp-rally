@@ -256,6 +256,9 @@ public class CreateNewModel : PageModel
                 //_draftStore.Remove(Input.LoadToken); 画面遷移なしで再作成した場合を考慮して明示的には削除しない。時間で消える
             }
 
+            // ローカルにも保存
+            SaveLocalFile(zipBytes);
+
             return File(zipBytes, "application/zip", fileName);
         }
         catch (Exception ex)
@@ -849,6 +852,28 @@ public class CreateNewModel : PageModel
             return ext == ".jpeg" ? ".jpg" : ext;
 
         return ".img";
+    }
+
+    private void SaveLocalFile(byte[] zipBytes)
+    {
+        var now = DateTime.Now;
+        var timestamp = now.ToString("yyyyMMddHHmmss");
+
+        // 4桁ランダム（0000〜9999）
+        var randomNumber = RandomNumberGenerator.GetInt32(0, 10000);
+        var randomPart = randomNumber.ToString("D4");
+
+        var fileName = $"{timestamp}_{randomPart}.zip";
+
+        // 保存先ディレクトリ（例：App_Data/archives）
+        var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "archives");
+
+        if (!Directory.Exists(saveDir))
+            Directory.CreateDirectory(saveDir);
+
+        var fullPath = Path.Combine(saveDir, fileName);
+
+        System.IO.File.WriteAllBytes(fullPath, zipBytes);
     }
 
     private static string SanitizeFileName(string name)
