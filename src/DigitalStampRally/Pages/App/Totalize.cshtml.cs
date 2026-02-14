@@ -52,7 +52,7 @@ public class TotalizeModel : PageModel
         {
             if (e == null || string.IsNullOrWhiteSpace(t))
             {
-                ErrorMessage = "URLの情報が不足しています。";
+                ErrorMessage = "エラーが発生しました(001)。";//"URLの情報が不足しています。";
                 return Page();
             }
 
@@ -62,14 +62,14 @@ public class TotalizeModel : PageModel
             var ev = await _eventService.GetEventAsync(EventId);
             if (ev == null)
             {
-                ErrorMessage = "イベントが見つかりませんでした。";
+                ErrorMessage = "エラーが発生しました(002)。";//"イベントが見つかりませんでした。";
                 return Page();
             }
 
             // トークン検証（hash）
             if (!await _eventService.ValidateTotalizeTokenAsync(EventId, Token))
             {
-                ErrorMessage = "集計画面トークンが無効です。";
+                ErrorMessage = "エラーが発生しました(003)。";//"集計画面トークンが無効です。";
                 return Page();
             }
 

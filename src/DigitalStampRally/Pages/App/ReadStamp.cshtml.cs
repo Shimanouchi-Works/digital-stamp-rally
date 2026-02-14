@@ -38,7 +38,7 @@ public class ReadStampModel : PageModel
         {
             if (e == null || s == null || string.IsNullOrWhiteSpace(t))
             {
-                ErrorMessage = "QRコードの情報が不足しています。";
+                ErrorMessage = "エラーが発生しました(001)。";//"QRコードの情報が不足しています。";
                 return Page();
             }
 
@@ -49,20 +49,28 @@ public class ReadStampModel : PageModel
             var ev = await _eventService.GetEventAsync(EventId);
             if (ev == null)
             {
-                ErrorMessage = "このイベントは見つかりませんでした。";
+                ErrorMessage =  "エラーが発生しました(002)。";//"このイベントは見つかりませんでした。";
                 return Page();
             }
 
             // 期限チェック
             var now = DateTime.Now;
-            if (ev.StartsAt != null && now < ev.StartsAt) { ErrorMessage = "このQRコードは有効期限外です（開始前）。"; return Page(); }
-            if (ev.EndsAt != null && now > ev.EndsAt) { ErrorMessage = "このQRコードは有効期限外です（終了後）。"; return Page(); }
+            if (ev.StartsAt != null && now < ev.StartsAt)
+            {
+                ErrorMessage =  "このQRコードは有効期限外です（開始前）。";
+                return Page();
+            }
+            if (ev.EndsAt != null && now > ev.EndsAt)
+            {
+                ErrorMessage =  "このQRコードは有効期限外です（終了後）。";
+                return Page();
+                }
 
             // スポット＆トークン検証（hashで照合）
             var valid = await _eventService.ValidateSpotTokenAsync(EventId, SpotId, Token);
             if (!valid)
             {
-                ErrorMessage = "QRコードが無効です。";
+                ErrorMessage =  "エラーが発生しました(003)。";//"QRコードが無効です。";
                 return Page();
             }
 
@@ -70,7 +78,7 @@ public class ReadStampModel : PageModel
             var spot = spots.FirstOrDefault(x => x.Id == SpotId);
             if (spot == null)
             {
-                ErrorMessage = "掲示場所が見つかりませんでした。";
+                ErrorMessage =  "エラーが発生しました(004)。";//"掲示場所が見つかりませんでした。";
                 return Page();
             }
 
@@ -102,11 +110,17 @@ public class ReadStampModel : PageModel
         try
         {
             if (req == null || req.EventId <= 0 || req.SpotId <= 0 || string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.VisitorId))
-                return new JsonResult(new { success = false, message = "リクエスト不正" });
+                return new JsonResult(new {
+                        success = false,
+                        message =  "エラーが発生しました(011)。",//"リクエスト不正"
+                        });
 
             // token再検証（直叩き対策）
             if (!await _eventService.ValidateSpotTokenAsync(req.EventId, req.SpotId, req.Token))
-                return new JsonResult(new { success = false, message = "無効なQRです" });
+                return new JsonResult(new { 
+                        success = false,
+                        message = "エラーが発生しました(012)。",//"無効なQRです"
+                        });
 
             var ua = Request.Headers.UserAgent.ToString();
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
@@ -115,7 +129,10 @@ public class ReadStampModel : PageModel
             var session = await _stampService.GetOrCreateSessionAsync(req.EventId, req.VisitorId, ua, ipHash);
 
             if (session.IsBlocked ?? false)
-                return new JsonResult(new { success = false, message = "ブロックされています" });
+                return new JsonResult(new { 
+                            success = false,
+                            message = "エラーが発生しました(013)。",//"ブロックされています"
+                            });
 
             // ゴール済みは追加押印を拒否（仕様）
             if (await _stampService.IsGoaledAsync(req.EventId, session.Id))
@@ -140,11 +157,17 @@ public class ReadStampModel : PageModel
         try
         {
             if (req == null || req.EventId <= 0 || string.IsNullOrWhiteSpace(req.VisitorId))
-                return new JsonResult(new { success = false, message = "リクエスト不正" });
+                return new JsonResult(new { 
+                            success = false,
+                            message = "エラーが発生しました(021)。",//"リクエスト不正"
+                            });
 
             var ev = await _eventService.GetEventAsync(req.EventId);
             if (ev == null)
-                return new JsonResult(new { success = false, message = "イベント不明" });
+                return new JsonResult(new { 
+                            success = false,
+                            message = "エラーが発生しました(022)。",//"イベント不明"
+                            });
 
             // 期限チェック
             var now = DateTime.Now;

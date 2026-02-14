@@ -238,7 +238,7 @@ public class CreateNewModel : PageModel
             catch (Exception ex)
             {
                 Console.WriteLine($"{ex}");
-                ErrorMessage = "DBへの保存に失敗しました。時間をおいて再度お試しください。";
+                ErrorMessage = "エラーが発生しました。時間をおいて再度お試しください。";//"DBへの保存に失敗しました。時間をおいて再度お試しください。";
                 return Page();
             }
 
