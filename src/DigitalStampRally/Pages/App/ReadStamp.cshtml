@@ -49,14 +49,27 @@
                 </div>
             </div>
 
+            @if( Model.RequiredSpotIds.Count > 0 )
+            {
+            <div id="goal-information"
+                class="alert alert-light mb-0"
+                role="alert">
+                <div class="fw-bold">必須スタンプを全て揃えるとゴールできます。</div>
+                <div class="small mt-1">
+                    @* 主催者の確認のもと、<b>ゴール確認</b>画面で「ゴールする」を押してください。 *@
+                    ゴール方法に関してはイベント主催者からの案内に従ってください。
+                </div>
+            </div>
             <div id="goal-ready"
                 class="alert alert-success d-none mb-0"
                 role="alert">
-                <div class="fw-bold">必須スタンプがそろいました！</div>
-                @* <div class="small mt-1">
-                    主催者の確認のもと、<b>ゴール確認</b>画面で「ゴールする」を押してください。
-                </div> *@
+                <div class="fw-bold">必須スタンプがそろいました！ゴールできます！</div>
+                <div class="small mt-1">
+                    @* 主催者の確認のもと、<b>ゴール確認</b>画面で「ゴールする」を押してください。 *@
+                    ゴール方法に関してはイベント主催者からの案内に従ってください。
+                </div>
             </div>
+            }
 
             <hr class="my-3" />
 
@@ -274,8 +287,9 @@
     }
 
     function updateGoalReady(stamps){
+        const elInfo = document.getElementById("goal-information");
         const el = document.getElementById("goal-ready");
-        if(!el) return;
+        if(!elInfo || !el) return;
 
         // 必須指定が無いイベントなら表示しない（方針により変えてOK）
         if(requiredSpotIds.length === 0){
@@ -287,8 +301,10 @@
         const ready = (reqCollected >= requiredSpotIds.length);
 
         if(ready){
+            elInfo.classList.add("d-none");
             el.classList.remove("d-none");
         }else{
+            elInfo.classList.remove("d-none");
             el.classList.add("d-none");
         }
     }

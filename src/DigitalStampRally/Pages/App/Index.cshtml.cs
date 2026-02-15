@@ -164,7 +164,7 @@ public class AppIndexModel : PageModel
                 await using var input = projectFile.OpenReadStream();
                 using var outer = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
 
-                var qmkpjEntry = outer.GetEntry("project.qmkpj");
+                var qmkpjEntry = outer.GetEntry(AppConst.QmkpjFileName);
                 if (qmkpjEntry == null)
                 {
                     ErrorMessage = "ファイル形式が正しくありません(0001)。";//"project.qmkpj が見つかりません。古い形式のZIP、またはこのアプリのファイルではない可能性があります。";

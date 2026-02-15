@@ -365,7 +365,7 @@ public class CreateNewModel : PageModel
             // AddText(zip, "project.json", json);
             // ★復元用パッケージ（project.qmkpj）を外側ZIPに同梱
             var qmkpjBytes = BuildProjectPackageQmkpj(project);
-            AddBytes(zip, "project.qmkpj", qmkpjBytes);
+            AddBytes(zip, AppConst.QmkpjFileName, qmkpjBytes);
 
             // // スポット掲示用PDF（各スポット）  
             // foreach (var spot in project.Spots)

@@ -9,4 +9,5 @@ public static class AppConst
     public const string AppNameEn = "Qmikke";
 
     public const int MaxEventImageBytes = 20 * 1024 * 1024;
+    public const string QmkpjFileName = "同じ内容でスタンプラリーを作成するためのファイル.qmkpj";
 }
