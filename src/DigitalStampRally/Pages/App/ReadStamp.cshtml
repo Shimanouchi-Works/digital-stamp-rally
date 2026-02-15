@@ -49,7 +49,23 @@
                 </div>
             </div>
 
+            <div id="goal-ready"
+                class="alert alert-success d-none mb-0"
+                role="alert">
+                <div class="fw-bold">必須スタンプがそろいました！</div>
+                @* <div class="small mt-1">
+                    主催者の確認のもと、<b>ゴール確認</b>画面で「ゴールする」を押してください。
+                </div> *@
+            </div>
+
             <hr class="my-3" />
+
+            <div id="stamp-toast"
+                class="alert alert-success text-center fw-bold d-none mb-0"
+                role="alert"
+                aria-live="polite">
+                ✅ スタンプGET！
+            </div>
 
             <div class="small text-muted mb-2">これまでに読み取ったスタンプ一覧</div>
             <ul class="list-group" id="stamp-list"></ul>
@@ -232,6 +248,51 @@
         container.insertBefore(alert, container.children[1] || null);
     }
 
+    function showStampToast(text){
+        const el = document.getElementById("stamp-toast");
+        if(!el) return;
+
+        el.textContent = text || "✅ スタンプGET！";
+
+        el.classList.remove("d-none");
+        el.classList.remove("is-show");
+        // 再表示でもアニメが走るように
+        void el.offsetWidth;
+        el.classList.add("is-show");
+
+        // スマホだけ軽く振動（任意）
+        @* if (navigator.vibrate) {
+            navigator.vibrate(80);
+        } *@
+
+        // 2.5秒後に消す
+        clearTimeout(el._hideTimer);
+        el._hideTimer = setTimeout(() => {
+            el.classList.add("d-none");
+            el.classList.remove("is-show");
+        }, 5000);
+    }
+
+    function updateGoalReady(stamps){
+        const el = document.getElementById("goal-ready");
+        if(!el) return;
+
+        // 必須指定が無いイベントなら表示しない（方針により変えてOK）
+        if(requiredSpotIds.length === 0){
+            el.classList.add("d-none");
+            return;
+        }
+
+        const reqCollected = countRequiredCollected(stamps);
+        const ready = (reqCollected >= requiredSpotIds.length);
+
+        if(ready){
+            el.classList.remove("d-none");
+        }else{
+            el.classList.add("d-none");
+        }
+    }
+
     const visitorId = getVisitorId();
 
     (async () => {
@@ -274,12 +335,27 @@
 
             const stamps = loadStamps();
 
+            @* if(stampData.result === 1){
+                document.getElementById("badge-duplicate").classList.remove("d-none");
+            } else {
+                document.getElementById("badge-new").classList.remove("d-none");
+                stamps[String(spotId)] = new Date().toISOString();
+                saveStamps(stamps);
+            } *@
+
             if(stampData.result === 1){
                 document.getElementById("badge-duplicate").classList.remove("d-none");
             } else {
                 document.getElementById("badge-new").classList.remove("d-none");
                 stamps[String(spotId)] = new Date().toISOString();
                 saveStamps(stamps);
+
+                const reqCollectedAfter = countRequiredCollected(stamps);
+                if (requiredSpotIds.length > 0 && reqCollectedAfter === requiredSpotIds.length) {
+                    showStampToast("🎉 必須スタンプ達成！");
+                } else {
+                    showStampToast("✅ スタンプGET！");
+                }
             }
 
             // 必須達成数表示
@@ -291,29 +367,34 @@
 
             // 一覧表示
             renderStampList(stamps);
+            updateGoalReady(stamps);
+            
+            if (stampData.result !== 1) {
+                sendEvent('stamp_scan', { event_id: '@Model.EventId', spot_id: '@Model.SpotId' });
+            }
 
             // 3) 達成コード（必須が0なら常に達成）
-            const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length);
+            @* const achieved = (requiredSpotIds.length === 0) ? true : (reqCollected === requiredSpotIds.length); *@
 
             @* const codeEl = document.getElementById("achievement-code"); *@
             @* const hintEl = document.getElementById("achievement-hint"); *@
             @* const badgeAch = document.getElementById("badge-achieved"); *@
 
-            if(!achieved){
+            @* if(!achieved){ *@
                 @* hintEl.textContent = "必須スタンプをすべて集めると表示されます。"; *@
-                return;
-            }
+                @* return;
+            } *@
 
-            const res = await postJson("?handler=Achievement", { eventId, visitorId });
-            if(!res.ok){
+            @* const res = await postJson("?handler=Achievement", { eventId, visitorId });
+            if(!res.ok){ *@
                 @* hintEl.textContent = "達成コードの取得に失敗しました。通信環境をご確認ください。"; *@
-                return;
-            }
-            const data = await res.json();
-            if(!data.success){
+                @* return;
+            } *@
+            @* const data = await res.json();
+            if(!data.success){ *@
                 @* hintEl.textContent = data.message || "まだ条件を満たしていません。"; *@
-                return;
-            }
+                @* return;
+            } *@
 
             @* badgeAch.classList.remove("d-none"); *@
             @* codeEl.textContent = formatAchievementCode(data.code); *@

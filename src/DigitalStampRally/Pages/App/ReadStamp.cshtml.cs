@@ -133,6 +133,7 @@ public class ReadStampModel : PageModel
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
             var ipHash = CryptoUtil.Sha256Hex(ip);
 
+Console.WriteLine($"OnPostStampAsync: visitor={req.VisitorId} spot={req.SpotId}");
             var session = await _stampService.GetOrCreateSessionAsync(req.EventId, req.VisitorId, ua, ipHash);
 
             if (session.IsBlocked ?? false)

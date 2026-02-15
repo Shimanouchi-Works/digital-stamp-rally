@@ -38,6 +38,10 @@
                         ※ 主催者の確認のもと、参加者に操作してもらってください
                     </div> *@
                 </div>
+                <div id="goal-clear-banner" 
+                    class="alert alert-success text-center fw-bold display-6 d-none mt-3">
+                    🎉 クリア！
+                </div>
             </div>
 
 
@@ -310,6 +314,14 @@
 
         @* badgeGoaled.classList.remove("d-none"); *@
         msg.textContent = "ゴールしました。以後スタンプ読み取りはできません。";
+        const banner = document.getElementById("goal-clear-banner");
+        if (banner) {
+            banner.classList.remove("d-none");
+        }
+
+        sendEvent( 'goal_complete', {
+            event_id: '@Model.EventId'
+        });
 
         // ★追加：状態文言を更新
         if (stateText) stateText.textContent = "ゴール済みです";

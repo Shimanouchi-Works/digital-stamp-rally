@@ -25,3 +25,9 @@ function formatAchievementCode(code){
     // 例: 12345678 → 1234-5678
     return s.replace(/(\d{4})(?=\d)/g, "$1-");
 }   
+
+function sendEvent(name, params) {
+    if (typeof gtag !== 'undefined') {
+        gtag('event', name, params);
+    }
+}

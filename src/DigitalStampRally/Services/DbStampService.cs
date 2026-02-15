@@ -45,63 +45,82 @@ public class DbStampService
     //         throw;
     //     }
     // }
+    // public async Task<ParticipantSession> GetOrCreateSessionAsync(
+    //     long eventId, string sessionKey, string userAgent, string ipHash)
+    // {
+    //     var now = DateTime.Now;
+
+    //     // まず通常の取得
+    //     var s = await _db.ParticipantSessions
+    //         .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
+
+    //     if (s != null)
+    //     {
+    //         s.LastSeenAt = now;
+    //         s.UserAgent = userAgent;
+    //         // ipHashも更新したいならここで
+    //         // s.IpHash = ipHash;
+    //         await _db.SaveChangesAsync();
+    //         return s;
+    //     }
+
+    //     // 無ければ作成
+    //     s = new ParticipantSession
+    //     {
+    //         //Id = IdUtil.NewId(),
+    //         EventsId = eventId,
+    //         SessionKey = sessionKey,
+    //         FirstSeenAt = now,
+    //         LastSeenAt = now,
+    //         UserAgent = userAgent,
+    //         IpHash = ipHash,
+    //         IsBlocked = false
+    //     };
+
+    //     _db.ParticipantSessions.Add(s);
+
+    //     try
+    //     {
+    //         await _db.SaveChangesAsync();
+    //         return s;
+    //     }
+    //     catch (DbUpdateException)
+    //     {
+    //         // ここに来るのは「同時に誰か(自分の別リクエスト含む)が先にINSERTした」ケース
+    //         var existing = await _db.ParticipantSessions
+    //             .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
+
+    //         if (existing != null)
+    //         {
+    //             existing.LastSeenAt = now;
+    //             existing.UserAgent = userAgent;
+    //             // existing.IpHash = ipHash;
+    //             await _db.SaveChangesAsync();
+    //             return existing;
+    //         }
+
+    //         // ここまで来るのは本当に別原因なので上に投げる
+    //         throw;
+    //     }
+    // }
     public async Task<ParticipantSession> GetOrCreateSessionAsync(
         long eventId, string sessionKey, string userAgent, string ipHash)
     {
         var now = DateTime.Now;
 
-        // まず通常の取得
-        var s = await _db.ParticipantSessions
-            .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
+        // 1発で作成or更新（UNIQUE(events_id, session_key) 前提）
+        await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                    INSERT INTO participant_sessions
+                    (events_id, session_key, first_seen_at, last_seen_at, user_agent, ip_hash, is_blocked)
+                    VALUES
+                    ({eventId}, {sessionKey}, {now}, {now}, {userAgent}, {ipHash}, 0)
+                     ON DUPLICATE KEY UPDATE
+                    last_seen_at = VALUES(last_seen_at),
+                   user_agent = VALUES(user_agent)
+               ");
 
-        if (s != null)
-        {
-            s.LastSeenAt = now;
-            s.UserAgent = userAgent;
-            // ipHashも更新したいならここで
-            // s.IpHash = ipHash;
-            await _db.SaveChangesAsync();
-            return s;
-        }
-
-        // 無ければ作成
-        s = new ParticipantSession
-        {
-            //Id = IdUtil.NewId(),
-            EventsId = eventId,
-            SessionKey = sessionKey,
-            FirstSeenAt = now,
-            LastSeenAt = now,
-            UserAgent = userAgent,
-            IpHash = ipHash,
-            IsBlocked = false
-        };
-
-        _db.ParticipantSessions.Add(s);
-
-        try
-        {
-            await _db.SaveChangesAsync();
-            return s;
-        }
-        catch (DbUpdateException)
-        {
-            // ここに来るのは「同時に誰か(自分の別リクエスト含む)が先にINSERTした」ケース
-            var existing = await _db.ParticipantSessions
-                .FirstOrDefaultAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
-
-            if (existing != null)
-            {
-                existing.LastSeenAt = now;
-                existing.UserAgent = userAgent;
-                // existing.IpHash = ipHash;
-                await _db.SaveChangesAsync();
-                return existing;
-            }
-
-            // ここまで来るのは本当に別原因なので上に投げる
-            throw;
-        }
+        return await _db.ParticipantSessions
+            .FirstAsync(x => x.EventsId == eventId && x.SessionKey == sessionKey);
     }
 
 

@@ -1,17 +1,75 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    @if (ViewData["NoIndex"] as bool? == true)
+
+    @using Microsoft.Extensions.Configuration
+    @inject IConfiguration Config
+
+    @{
+        var appName = DigitalStampRally.Models.AppConst.AppName;
+
+        var baseUrl = (Config["App:BaseUrl"] ?? "").TrimEnd('/'); // 例: https://q-mikke.jp
+        var title = (ViewData["Title"] as string) ?? appName;
+
+        var description = (ViewData["Description"] as string)
+            ?? "小規模イベント向け・無料・登録不要のデジタルスタンプラリー作成ツール。QRコードを掲示して、来場者はスマホで読み取るだけ。";
+
+        var canonicalPath = (ViewData["Canonical"] as string) ?? Context.Request.Path.ToString();
+        var canonicalUrl = !string.IsNullOrWhiteSpace(baseUrl) ? $"{baseUrl}{canonicalPath}" : null;
+
+        var ogTitle = (ViewData["OgTitle"] as string) ?? title;
+        var ogDescription = (ViewData["OgDescription"] as string) ?? description;
+        var ogImage = (ViewData["OgImage"] as string); // 例: /img/ogp.png
+        var ogUrl = canonicalUrl;
+
+        var noIndex = ViewData["NoIndex"] as bool? == true;
+
+        var ga4 = Config["GA4:MeasurementId"];
+        var isDev = string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development",
+            StringComparison.OrdinalIgnoreCase);
+        var enableGa4 = !string.IsNullOrWhiteSpace(ga4) && !isDev;
+    }
+
+    @if (noIndex)
     {
         <meta name="robots" content="noindex, nofollow" />
     }
-    <title>@ViewData["Title"] - @DigitalStampRally.Models.AppConst.AppName</title>
+
+    <title>@title - @appName</title>
+    <meta name="description" content="@description" />
+
+    @if (!noIndex && !string.IsNullOrWhiteSpace(canonicalUrl))
+    {
+        <link rel="canonical" href="@canonicalUrl" />
+    }
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
     <link rel="shortcut icon" href="/favicon.ico">
+
+    @if (!noIndex)
+    {
+        <meta property="og:site_name" content="@appName" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="@ogTitle" />
+        <meta property="og:description" content="@ogDescription" />
+        @if (!string.IsNullOrWhiteSpace(ogUrl))
+        {
+            <meta property="og:url" content="@ogUrl" />
+        }
+        @if (!string.IsNullOrWhiteSpace(ogImage) && !string.IsNullOrWhiteSpace(baseUrl))
+        {
+            <meta property="og:image" content="@(ogImage.StartsWith("http") ? ogImage : $"{baseUrl}{ogImage}")" />
+        }
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="@ogTitle" />
+        <meta name="twitter:description" content="@ogDescription" />
+    }
 
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -20,7 +78,18 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/confirmDate/confirmDate.css">
 
+    @if (enableGa4)
+    {
+        <script async src="https://www.googletagmanager.com/gtag/js?id=@ga4"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '@ga4', { anonymize_ip: true });
+        </script>
+    }
 </head>
+
 <body>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
@@ -29,12 +98,12 @@
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
-
 
     <footer class="py-4">
         <div class="container">
@@ -48,7 +117,6 @@
 
                 <div class="small">
                     <div class="d-flex flex-wrap gap-3">
-                        <!-- TODO: 実際のページに変更 -->
                         <a class="text-decoration-none" href="/Terms">利用規約</a>
                         <a class="text-decoration-none" href="/Privacy">プライバシーポリシー</a>
                         <a class="text-decoration-none" target="_blank" href="/Contact">お問い合わせ</a>
@@ -58,19 +126,6 @@
             </div>
         </div>
     </footer>
-
-
-    @* <footer class="border-top footer text-muted">
-        <div class="container">
-            © @DateTime.Now.Year @DigitalStampRally.Models.AppConst.AppName
-
-            <div class="mt-2">
-                <a asp-page="/Terms">利用規約</a> |
-                <a asp-page="/Privacy">プライバシーポリシー</a> |
-                <a asp-page="/Contact">お問い合わせ</a>
-            </div>
-        </div>
-    </footer> *@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

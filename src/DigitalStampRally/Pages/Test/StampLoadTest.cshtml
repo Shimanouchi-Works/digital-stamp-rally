@@ -41,11 +41,40 @@
 
 @section Scripts{
 <script>
+
+const CONCURRENCY = 20; // ← 好きな数に。上げすぎ注意
+
 function randomDate(start, end) {
     const startMs = start.getTime();
     const endMs = end.getTime();
     const randomMs = startMs + Math.random() * (endMs - startMs);
     return new Date(randomMs);
+}
+
+async function runPool(tasks, concurrency) {
+    let i = 0;
+    const workers = Array.from({ length: concurrency }, async () => {
+        while (i < tasks.length) {
+            const taskIndex = i++;
+            await tasks[taskIndex]();
+        }
+    });
+    await Promise.all(workers);
+}
+
+function generateToken() {
+    let token;
+    if (window.crypto && crypto.getRandomValues) {
+        const buf = new Uint8Array(16);
+        crypto.getRandomValues(buf);
+        token = [...buf].map(b => b.toString(16).padStart(2, '0')).join('');
+    }else{
+        token = 't-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+    }
+
+    console.log(`token:${token}`);
+    // fallback
+    return token;
 }
 
 async function startTest() {
@@ -88,10 +117,82 @@ async function startTest() {
             throw new Error("開始日時と終了日時が不正です（開始 >= 終了）");
         }
 
-        // ② 疑似スタンプ押下（全ユーザー×全スポット）
-        let totalCalls = 0;
+        const USER_CONCURRENCY = 10;  // ユーザーを同時に処理する数（まずは10）
+        const STAMP_CONCURRENCY = 10; // 1ユーザー内のスタンプ同時送信数（まずは10）
 
-        for (let u = 0; u < userCount; u++) {
+        let okCalls = 0;
+        let failCalls = 0;
+
+        // 1ユーザー分を「スタンプ完了→（必要なら）ゴール」までやる
+        async function runOneUser(u) {
+            const visitorId = generateVisitorId();
+
+            // ① スタンプ（順序保証のため、"このユーザーのスタンプ" が全部終わるまで待つ）
+            const stampTasks = spots.map(spot => async () => {
+                const dt = randomDate(startsAt, endsAt).toISOString();
+
+                const body = {
+                    EventId: eventId,
+                    SpotId: spot.id,     // spotsが {id:...} の前提
+                    Token: generateToken(),
+                    VisitorId: visitorId
+                };
+
+                const r = await fetch(`/App/ReadStamp?handler=Stamp&date=${encodeURIComponent(dt)}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+
+                if (!r.ok) {
+                    failCalls++;
+                    const t = await r.text();
+                    throw new Error(`Stamp失敗 event=${eventId} spot=${spot.id}: ${t}`);
+                }
+                okCalls++;
+            });
+
+            // このユーザーのスタンプを並列で実行（STAMP_CONCURRENCYで制限）
+            await runPool(stampTasks, STAMP_CONCURRENCY);
+
+            // ② ゴール（この時点でスタンプが全て完了していることが保証される）
+            if (u < goalCount) {
+                const goalDt = randomDate(startsAt, endsAt).toISOString();
+
+                const gr = await fetch(`/App/SetGoal?handler=Goal&date=${encodeURIComponent(goalDt)}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        EventId: eventId,
+                        Token: generateToken(),
+                        VisitorId: visitorId
+                    })
+                });
+
+                if (!gr.ok) {
+                    failCalls++;
+                    const t = await gr.text();
+                    throw new Error(`Goal失敗 event=${eventId}: ${t}`);
+                }
+                okCalls++;
+            }
+        }
+
+        // ユーザー単位で並列実行（USER_CONCURRENCYで制限）
+        const userTasks = Array.from({ length: userCount }, (_, u) => async () => {
+            await runOneUser(u);
+        });
+
+        document.getElementById("meta").innerText =
+        `送信開始…（ユーザー=${userCount}, ゴール=${goalCount}, スポット=${spots.length}, ユーザー並列=${USER_CONCURRENCY}, スタンプ並列=${STAMP_CONCURRENCY}）`;
+
+        await runPool(userTasks, USER_CONCURRENCY);
+
+        document.getElementById("result").innerText =
+        `完了：成功=${okCalls}, 失敗=${failCalls}`;
+
+
+        @* for (let u = 0; u < userCount; u++) {
             const visitorId = generateVisitorId();
 
             for (const spot of spots) {
@@ -139,10 +240,10 @@ async function startTest() {
 
                 totalCalls++;
             }
-        }
+        } *@
 
-        document.getElementById("result").innerText =
-        `完了：${totalCalls} 件送信（ユーザー=${userCount}, ゴール=${goalCount}, スポット=${spots.length}）`;
+        @* document.getElementById("result").innerText =
+        `完了：${totalCalls} 件送信（ユーザー=${userCount}, ゴール=${goalCount}, スポット=${spots.length}）`; *@
 
     } catch (e) {
         document.getElementById("result").innerText = `エラー：${e.message ?? e}`;
@@ -152,6 +253,7 @@ async function startTest() {
 }
 
 function generateVisitorId() {
+    let id;
     // cryptoが使える場合
     if (window.crypto && crypto.getRandomValues) {
         const buf = new Uint8Array(16);
@@ -163,11 +265,14 @@ function generateVisitorId() {
 
         const hex = [...buf].map(b => b.toString(16).padStart(2, '0')).join('');
 
-        return `${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20)}`;
+        id = `${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20)}`;
+    }else{
+        id = 'v-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
     }
 
     // fallback（超簡易）
-    return 'v-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
+    console.log(`id:${id}`);
+    return id;
 }
 
 </script>
