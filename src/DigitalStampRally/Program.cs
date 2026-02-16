@@ -1,7 +1,12 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+using System.IO;
 using System.Threading.RateLimiting;
 using NLog.Web;
+using QuestPDF.Infrastructure;
+using QuestPDF.Drawing;
 using DigitalStampRally.Services;
 using DigitalStampRally.Database;
 
@@ -93,6 +98,20 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services
+    .AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+    .SetApplicationName(DigitalStampRally.Models.AppConst.AppNameEn); // 重要：アプリ名固定
+
+
+QuestPDF.Settings.License = LicenseType.Community;
+// ここは実行環境で確実に読めるパスにする
+FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "NotoSansJP-Regular.ttf")));
+FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "NotoSansJP-Bold.ttf")));
+FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "NotoSansJP-SemiBold.ttf")));
+FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "DejaVuSansMono.ttf")));
+FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "DejaVuSansMono-Bold.ttf")));
+
 var app = builder.Build();
 
 //
@@ -107,12 +126,19 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+});
+
+
 // HTTPS（本番では推奨）
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
-
+app.UsePathBase("/qr");
 app.UseRouting();
+
+app.UseStaticFiles();
 
 app.UseSession();
 

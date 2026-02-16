@@ -31,7 +31,7 @@
                         イベント情報と掲示場所を入力して、掲示用QRコードPDFを出力します。
                     </p>
 
-                    <a class="btn btn-primary" href="/App/CreateNew">
+                    <a class="btn btn-primary" asp-page="/App/CreateNew">
                         新しいスタンプラリーを作成
                     </a>
                 </div>
@@ -65,7 +65,7 @@
                     @* @if (!string.IsNullOrWhiteSpace(Model.LoadedToken))
                     {
                         <div class="alert alert-success mt-3 mb-0">
-                            読み込み準備ができました。<a class="alert-link" href="/CreateNew?load=@Model.LoadedToken">作成画面へ移動</a>
+                            読み込み準備ができました。<a class="alert-link" asp-page="/CreateNew?load=@Model.LoadedToken">作成画面へ移動</a>
                         </div>
                     } *@
                 </div>

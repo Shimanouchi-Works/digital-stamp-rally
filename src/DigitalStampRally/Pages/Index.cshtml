@@ -112,7 +112,7 @@
 
                 <div class="d-flex flex-wrap gap-2">
                     <!-- TODO: 実際の作成開始ページに変更 -->
-                    <a class="btn btn-primary btn-lg" href="/App/CreateNew">
+                    <a class="btn btn-primary btn-lg" asp-page="/App/CreateNew">
                         今すぐ無料で作る（登録不要）
                     </a>
                     <a class="btn btn-outline-secondary btn-lg" href="#howto">
@@ -144,7 +144,7 @@
                 <div class="lp-card bg-white p-3 lp-shadow-soft">
                     <div class="ratio ratio-16x9 rounded-3 overflow-hidden bg-light">
                         <!-- TODO: スクショ画像に差し替え（wwwroot/images/lp/hero.png など） -->
-                        <img src="/img/lp/hero-placeholder.png" alt="作成画面イメージ" class="w-100 h-100" style="object-fit:cover;">
+                        <img src="~/img/lp/hero-placeholder.png" alt="作成画面イメージ" class="w-100 h-100" style="object-fit:cover;">
                     </div>
                     <div class="mt-3">
                         <div class="d-flex align-items-center justify-content-between">
@@ -331,7 +331,7 @@
 
         <div class="text-center mt-4">
             <!-- TODO: 実際の作成開始ページに変更 -->
-            <a class="btn btn-primary btn-lg" href="/App/CreateNew">今すぐ無料で作る（登録不要）</a>
+            <a class="btn btn-primary btn-lg" asp-page="/App/CreateNew">今すぐ無料で作る（登録不要）</a>
         </div>
     </div>
 </section>
@@ -379,7 +379,7 @@
                             </div>
                             <div class="ratio ratio-4x3 rounded-3 overflow-hidden bg-light">
                                 <!-- TODO: PDFサンプル画像に差し替え -->
-                                <img src="/img/lp/pdf-sample-placeholder.png" alt="掲示用PDFサンプル" class="w-100 h-100" style="object-fit:cover;">
+                                <img src="~/img/lp/pdf-sample-placeholder.png" alt="掲示用PDFサンプル" class="w-100 h-100" style="object-fit:cover;">
                             </div>
                             <p class="small lp-muted mt-2 mb-0">
                                 ※ここに「掲示物がどんな見た目か」が分かる画像を置くと安心感が上がります。
@@ -446,7 +446,7 @@
 
         <div class="text-center mt-4">
             <!-- TODO: 実際の作成開始ページに変更 -->
-            <a class="btn btn-primary btn-lg" href="/App/CreateNew">無料で作ってみる</a>
+            <a class="btn btn-primary btn-lg" asp-page="/App/CreateNew">無料で作ってみる</a>
         </div>
     </div>
 </section>
@@ -539,7 +539,7 @@
 
                 <div class="text-center mt-4">
                     <!-- TODO: 問い合わせページに変更 -->
-                    <a class="btn btn-outline-secondary" target="_blank" href="/Contact">お問い合わせ</a>
+                    <a class="btn btn-outline-secondary" target="_blank" asp-page="/Contact">お問い合わせ</a>
                 </div>
             </div>
         </div>
@@ -562,7 +562,7 @@
                 </div>
                 <div class="col-lg-4 text-lg-end">
                     <!-- TODO: 実際の作成開始ページに変更 -->
-                    <a class="btn btn-primary btn-lg w-100 w-lg-auto" href="/App/CreateNew">
+                    <a class="btn btn-primary btn-lg w-100 w-lg-auto" asp-page="/App/CreateNew">
                         今すぐ無料で作る（登録不要）
                     </a>
                     <div class="small text-secondary mt-2">
@@ -590,9 +590,9 @@
             <div class="small">
                 <div class="d-flex flex-wrap gap-3">
                     <!-- TODO: 実際のページに変更 -->
-                    <a class="text-decoration-none" href="/Terms">利用規約</a>
-                    <a class="text-decoration-none" href="/Privacy">プライバシーポリシー</a>
-                    <a class="text-decoration-none" href="/Contact">お問い合わせ</a>
+                    <a class="text-decoration-none" asp-page="/Terms">利用規約</a>
+                    <a class="text-decoration-none" asp-page="/Privacy">プライバシーポリシー</a>
+                    <a class="text-decoration-none" asp-page="/Contact">お問い合わせ</a>
                 </div>
                 <div class="text-secondary mt-2">© @DateTime.Now.Year @DigitalStampRally.Models.AppConst.AppName</div>
             </div>
@@ -607,7 +607,7 @@
     <div class="container py-2">
         <div class="d-flex gap-2">
             <!-- TODO: 実際の作成開始ページに変更 -->
-            <a class="btn btn-primary w-100" href="/App/CreateNew">無料で作る</a>
+            <a class="btn btn-primary w-100" asp-page="/App/CreateNew">無料で作る</a>
             <a class="btn btn-outline-secondary" href="#faq">FAQ</a>
         </div>
     </div>

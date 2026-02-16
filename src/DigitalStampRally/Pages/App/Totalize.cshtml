@@ -10,7 +10,7 @@
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
         <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
-        <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
+        <a class="btn btn-outline-secondary" asp-page="/App/Index">ホームへ</a>
         return;
     }
 
@@ -37,7 +37,7 @@
                     </div>
 
                     <button class="btn btn-primary" type="submit">集計を表示</button>
-                    <a class="btn btn-outline-secondary ms-2" href="/App/Index">ホームへ</a>
+                    <a class="btn btn-outline-secondary ms-2" asp-page="/App/Index">ホームへ</a>
                 </form>
             </div>
         </div>
@@ -262,7 +262,7 @@
     }
 
     <div class="mt-3">
-        <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
+        <a class="btn btn-outline-secondary" asp-page="/App/Index">ホームへ</a>
     </div>
 </div>
 

@@ -16,8 +16,11 @@
         var description = (ViewData["Description"] as string)
             ?? "小規模イベント向け・無料・登録不要のデジタルスタンプラリー作成ツール。QRコードを掲示して、来場者はスマホで読み取るだけ。";
 
-        var canonicalPath = (ViewData["Canonical"] as string) ?? Context.Request.Path.ToString();
-        var canonicalUrl = !string.IsNullOrWhiteSpace(baseUrl) ? $"{baseUrl}{canonicalPath}" : null;
+        var req = Context.Request;
+        var host = $"{req.Scheme}://{req.Host}";
+        var pathBase = req.PathBase.HasValue ? req.PathBase.Value : "";
+        var canonicalPath = req.Path; // 例: /Terms
+        var canonicalUrl = $"{host}{pathBase}{canonicalPath}";
 
         var ogTitle = (ViewData["OgTitle"] as string) ?? title;
         var ogDescription = (ViewData["OgDescription"] as string) ?? description;
@@ -47,9 +50,9 @@
         <link rel="canonical" href="@canonicalUrl" />
     }
 
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
-    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="96x96" href="~/favicon-96x96.png">
+    <link rel="shortcut icon" href="~/favicon.ico">
 
     @if (!noIndex)
     {
@@ -117,9 +120,9 @@
 
                 <div class="small">
                     <div class="d-flex flex-wrap gap-3">
-                        <a class="text-decoration-none" href="/Terms">利用規約</a>
-                        <a class="text-decoration-none" href="/Privacy">プライバシーポリシー</a>
-                        <a class="text-decoration-none" target="_blank" href="/Contact">お問い合わせ</a>
+                        <a class="text-decoration-none" asp-page="/Terms">利用規約</a>
+                        <a class="text-decoration-none" asp-page="/Privacy">プライバシーポリシー</a>
+                        <a class="text-decoration-none" target="_blank" asp-page="/Contact">お問い合わせ</a>
                     </div>
                     <div class="text-secondary mt-2">© @DateTime.Now.Year @DigitalStampRally.Models.AppConst.AppName</div>
                 </div>

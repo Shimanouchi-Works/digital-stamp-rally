@@ -68,3 +68,11 @@ public class EventImageDto
     public string ContentType { get; set; } = "";
     public string Base64 { get; set; } = "";
 }
+
+public class SponsorAdDto
+{
+    public string? Title { get; set; }        // 例: "協賛"
+    public string? SponsorName { get; set; }  // 例: "○○商店"
+    public string? Url { get; set; }          // 任意
+    public byte[]? ImageBytes { get; set; }   // 画像広告（将来）
+}

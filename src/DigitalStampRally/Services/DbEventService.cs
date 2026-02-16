@@ -177,6 +177,7 @@ public class DbEventService
     public Task<bool> ValidateTotalizePasswordAsync(long eventId, string rawPassword)
     {
         var hash = CryptoUtil.Sha256Hex(rawPassword);
+Console.WriteLine($"################# RAW PASSWORD: {rawPassword}, HASH: {hash}");
         return _db.Events.AnyAsync(e => e.Id == eventId && e.TotalizePasswordHash == hash);
     }
 

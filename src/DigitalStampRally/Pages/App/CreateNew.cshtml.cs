@@ -484,64 +484,238 @@ public class CreateNewModel : PageModel
     // }
 
 
-    private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
+    // private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
+    // {
+    //     var eventImage = GetEventImageBytes(project.EventImage);
+
+    //     return Document.Create(container =>
+    //     {
+    //         foreach (var spot in project.Spots)
+    //         {
+    //             var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
+    //             _logger.LogInformation("Generating sopt PDF with URL: {Url}", url);
+    //             var qrPng = BuildQrPng(url);
+
+    //             container.Page(page =>
+    //             {
+    //                 page.Size(PageSizes.A4);
+    //                 page.Margin(30);
+    //                 page.DefaultTextStyle(x => x.FontSize(12));
+
+    //                 page.Content().Column(col =>
+    //                 {
+    //                     col.Item().Text(project.EventTitle).FontSize(24).SemiBold();
+
+    //                     if (eventImage != null)
+    //                     {
+    //                         col.Item().PaddingTop(8)
+    //                             .Height(160)
+    //                             .Image(eventImage)
+    //                             .FitArea();
+    //                     }
+
+    //                     col.Item().PaddingTop(14).Row(row =>
+    //                     {
+    //                         row.RelativeItem().Column(left =>
+    //                         {
+    //                             left.Item().Text($"掲示場所：{spot.SpotName}").FontSize(16).SemiBold();
+    //                             left.Item().PaddingTop(6).Text($"有効期限：{project.ValidFrom:yyyy/MM/dd HH:mm} ～ {project.ValidTo:yyyy/MM/dd HH:mm}");
+    //                             left.Item().PaddingTop(16).Text(spot.IsRequired ? "この場所は【必須スタンプ】です" : "");
+    //                         });
+
+    //                         row.ConstantItem(180).AlignMiddle().AlignCenter()
+    //                             .Border(1).Padding(8)
+    //                             .Column(q =>
+    //                             {
+    //                                 q.Item().Image(qrPng).FitArea();
+    //                                 q.Item().PaddingTop(6).Text("読み取りはこちら").FontSize(10).AlignCenter();
+    //                             });
+    //                     });
+
+    //                     col.Item().PaddingTop(16).Text("読み取り方法：スマホのカメラでQRを読み取り、表示された画面の指示に従ってください。");
+
+    //                     col.Item().PaddingTop(8).Text("注意：").SemiBold();
+    //                     col.Item().Text("・通信が必要です");
+    //                     col.Item().Text("・スタンプは全て同じ端末（同じブラウザ）で集めてください");
+    //                 });
+    //             });
+    //         }
+    //     }).GeneratePdf();
+    // }
+private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
+{
+    var eventImage = GetEventImageBytes(project.EventImage);
+    // 将来：projectにSponsorAdを追加したらここで受ける
+    SponsorAdDto? sponsor = null; // project.SponsorAd;
+
+    var hasImage = eventImage != null;
+    var qrSize = hasImage ? 240 : 400; // ★ここ調整ポイント
+
+    return Document.Create(container =>
     {
-        var eventImage = GetEventImageBytes(project.EventImage);
-
-        return Document.Create(container =>
+        foreach (var spot in project.Spots)
         {
-            foreach (var spot in project.Spots)
+            var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
+            var qrPng = BuildQrPng(url);
+
+            container.Page(page =>
             {
-                var url = $"{project.Urls.ReadStampBase}?e={project.EventId}&s={spot.SpotId}&t={spot.SpotToken}";
-                _logger.LogInformation("Generating sopt PDF with URL: {Url}", url);
-                var qrPng = BuildQrPng(url);
+                page.Size(PageSizes.A4);
+                page.Margin(26);
+                page.DefaultTextStyle(x => x.FontSize(12));
 
-                container.Page(page =>
+                // 背景をほんのり
+                page.PageColor(Colors.Grey.Lighten5);
+
+                page.Content().DefaultTextStyle(x => x.FontFamily("Noto Sans JP")).Column(col =>
                 {
-                    page.Size(PageSizes.A4);
-                    page.Margin(30);
-                    page.DefaultTextStyle(x => x.FontSize(12));
+                    // ===== Header band =====
+                    col.Item().Element(e =>
+                        HeaderBand(e, project.EventTitle, "", Colors.Blue.Lighten4));
+                    // col.Item().Element(e => HeaderBand(e, project.EventTitle));
 
-                    page.Content().Column(col =>
+                    // ===== Main card =====
+                    col.Item().PaddingTop(12).Element(card =>
                     {
-                        col.Item().Text(project.EventTitle).FontSize(24).SemiBold();
-
-                        if (eventImage != null)
-                        {
-                            col.Item().PaddingTop(8)
-                                .Height(160)
-                                .Image(eventImage)
-                                .FitArea();
-                        }
-
-                        col.Item().PaddingTop(14).Row(row =>
-                        {
-                            row.RelativeItem().Column(left =>
+                        card
+                            .Border(1)
+                            .BorderColor(Colors.Grey.Lighten2)
+                            .Background(Colors.White)
+                            .Padding(16)
+                            .Column(body =>
                             {
-                                left.Item().Text($"掲示場所：{spot.SpotName}").FontSize(16).SemiBold();
-                                left.Item().PaddingTop(6).Text($"有効期限：{project.ValidFrom:yyyy/MM/dd HH:mm} ～ {project.ValidTo:yyyy/MM/dd HH:mm}");
-                                left.Item().PaddingTop(16).Text(spot.IsRequired ? "この場所は【必須スタンプ】です" : "");
-                            });
-
-                            row.ConstantItem(180).AlignMiddle().AlignCenter()
-                                .Border(1).Padding(8)
-                                .Column(q =>
+                                // イベント画像（あれば）
+                                if (eventImage != null)
                                 {
-                                    q.Item().Image(qrPng).FitArea();
-                                    q.Item().PaddingTop(6).Text("読み取りはこちら").FontSize(10).AlignCenter();
+                                    body.Item()
+                                        .Height(150)
+                                        .Image(eventImage)
+                                        .FitArea();
+
+                                    body.Item().PaddingTop(10);
+                                }
+
+                                // 掲示場所＋必須バッジ
+                                body.Item().Row(r =>
+                                {
+                                    r.RelativeItem().Column(left =>
+                                    {
+                                        left.Item().Text("掲示場所").FontSize(11).FontColor(Colors.Grey.Darken2);
+                                        left.Item().Text(spot.SpotName).FontSize(20).SemiBold();
+                                    });
+
+                                    r.ConstantItem(140).AlignMiddle().AlignRight().Element(b =>
+                                    {
+                                        if (spot.IsRequired)
+                                            Badge(b, "必須スタンプ", PdfBrandColors.BadgePrimary);
+                                        else
+                                            Badge(b, "任意スタンプ", PdfBrandColors.BadgeSecondary);
+                                    });
                                 });
-                        });
 
-                        col.Item().PaddingTop(16).Text("読み取り方法：スマホのカメラでQRを読み取り、表示された画面の指示に従ってください。");
+                                // 有効期限
+                                body.Item().PaddingTop(10)
+                                    .Text($"有効期限：{project.ValidFrom:yyyy/MM/dd HH:mm} ～ {project.ValidTo:yyyy/MM/dd HH:mm}")
+                                    .FontColor(Colors.Grey.Darken2);
 
-                        col.Item().PaddingTop(8).Text("注意：").SemiBold();
-                        col.Item().Text("・通信が必要です");
-                        col.Item().Text("・スタンプは全て同じ端末（同じブラウザ）で集めてください");
+                                // QRエリア（目立たせる）
+                                body.Item().PaddingTop(18).AlignCenter().Column(qrCol =>
+                                {
+                                    qrCol.Item()
+                                        .Border(1)
+                                        .BorderColor(Colors.Grey.Lighten2)
+                                        .Padding(16)
+                                        .AlignCenter()
+                                        .Width(qrSize)
+                                        .Height(qrSize)
+                                        .Image(qrPng)
+                                        .FitArea();
+
+                                    qrCol.Item()
+                                        .PaddingTop(8)
+                                        .Text("スマホのカメラで読み取り")
+                                        .FontSize(11)
+                                        .FontColor(Colors.Grey.Darken1)
+                                        .AlignCenter();
+                                });
+
+
+                                // 注意パネル（余白を埋めて“貼る場所”を減らす）
+                                body.Item().PaddingTop(14).Element(n => NoticePanel(n));
+
+                                // URL（PC入力用、フッターに小さく）
+                                body.Item().PaddingTop(10)
+                                    .Hyperlink(url)
+                                    .Text(url)
+                                    .FontFamily("DejaVu Sans Mono")
+                                    .FontSize(9)
+                                    .FontColor(Colors.Blue.Medium);
+                            });
                     });
+
+                    // ===== Footer =====
+                    col.Item().PaddingTop(10).AlignCenter().Text("発行：Qみっけ（q-mikke.com）").FontSize(9).FontColor(Colors.Grey.Darken1);
                 });
-            }
-        }).GeneratePdf();
+            });
+        }
+    }).GeneratePdf();
+}
+
+private static void Badge(IContainer c, string text, string hexColor)
+{
+    c.Background(hexColor)
+     .PaddingVertical(6)
+     .PaddingHorizontal(12)
+     .AlignMiddle()
+     .AlignCenter()
+     .Text(text)
+        .FontColor("#FFFFFF")
+        .FontSize(11)
+        .SemiBold();
+}
+
+private static void NoticePanel(IContainer c)
+{
+    c.Border(1)
+     .BorderColor(Colors.Grey.Lighten2)
+     .Background(Colors.Grey.Lighten5)
+     .Padding(10)
+     .Column(col =>
+     {
+         col.Item().Text("注意").SemiBold();
+         Bullet(col, "通信が必要です。");
+         Bullet(col, "スタンプは全て同じ端末（同じブラウザ）で集めてください。");
+     });
+
+    static void Bullet(ColumnDescriptor col, string text)
+    {
+        col.Item().Row(r =>
+        {
+            r.ConstantItem(14).Text("・");
+            r.RelativeItem().Text(text);
+        });
     }
+}
+
+private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
+{
+    c.Border(1)
+     .BorderColor(Colors.Orange.Medium)
+     .Background(Colors.Orange.Lighten5)
+     .Padding(10)
+     .Column(col =>
+     {
+         col.Item().Text(sponsor.Title ?? "協賛").SemiBold().FontColor(Colors.Orange.Darken3);
+         if (!string.IsNullOrWhiteSpace(sponsor.SponsorName))
+             col.Item().Text(sponsor.SponsorName).FontSize(12).SemiBold();
+
+         if (sponsor.ImageBytes != null && sponsor.ImageBytes.Length > 0)
+             col.Item().PaddingTop(6).Height(60).Image(sponsor.ImageBytes).FitArea();
+
+         if (!string.IsNullOrWhiteSpace(sponsor.Url))
+             col.Item().PaddingTop(6).Text(sponsor.Url).FontSize(9).FontColor(Colors.Orange.Darken3);
+     });
+}
 
 
 
@@ -556,7 +730,7 @@ public class CreateNewModel : PageModel
             {
                 page.Size(PageSizes.A4);
                 page.Margin(30);
-                page.DefaultTextStyle(x => x.FontSize(12));
+                page.DefaultTextStyle(x => x.FontFamily("Noto Sans JP").FontSize(12));
 
                 page.Content().Column(col =>
                 {
@@ -590,11 +764,13 @@ public class CreateNewModel : PageModel
                             // r.Item().Text(url).FontSize(10).FontColor(Colors.Grey.Darken2);
                             r.Item().Hyperlink(url)
                                 .Text(url)
+                                .FontFamily("DejaVu Sans Mono")
                                 .FontSize(10)
                                 .FontColor(Colors.Blue.Medium);
 
                             r.Item().PaddingTop(10).Text("パスワード").SemiBold();
-                            r.Item().Text(project.TotalizePassword).FontSize(18).SemiBold();
+                            // r.Item().Text(project.TotalizePassword).FontSize(18).SemiBold();
+                            r.Item().Text(project.TotalizePassword).FontFamily("DejaVu Sans Mono").FontSize(18);
 
                             r.Item().PaddingTop(10).Text($"有効期限：{project.ValidFrom:yyyy/MM/dd HH:mm} ～ {project.ValidTo:yyyy/MM/dd HH:mm}");
                             // r.Item().PaddingTop(8).Text("※ パスワードは後から変更可能（実装予定）").FontColor(Colors.Grey.Darken2);
@@ -604,6 +780,25 @@ public class CreateNewModel : PageModel
             });
         }).GeneratePdf();
     }
+
+    private static void HeaderBand(IContainer c, string eventTitle, string purposeLabel, string bandColor)
+    {
+        c.Background(bandColor)
+        .PaddingVertical(10)
+        .PaddingHorizontal(14)
+        .Row(r =>
+        {
+            r.RelativeItem().Column(left =>
+            {
+                left.Item().Text(eventTitle).FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
+                left.Item().Text(purposeLabel).FontSize(11).FontColor(Colors.Grey.Darken2);
+            });
+
+            // r.ConstantItem(110).AlignRight().AlignMiddle()
+            // .Text("Qみっけ").FontSize(12).SemiBold().FontColor(Colors.Grey.Darken3);
+        });
+    }
+
 
     private byte[] BuildSimpleQrPdf(
         string title,
@@ -624,49 +819,100 @@ public class CreateNewModel : PageModel
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(30);
+                page.Margin(26);
                 page.DefaultTextStyle(x => x.FontSize(12));
+                page.PageColor(Colors.Grey.Lighten5);
 
-                page.Content().Column(col =>
+                page.Content().DefaultTextStyle(x => x.FontFamily("Noto Sans JP")).Column(col =>
                 {
-                    col.Item().Text(eventTitle).FontSize(24).SemiBold();
+                    // ヘッダー（ゴール用はオレンジ）
+                    col.Item().Element(e =>
+                        HeaderBand(e, eventTitle, "主催者用：ゴールQR（掲示しないでください）", Colors.Orange.Lighten4));
 
-                    col.Item().PaddingTop(4).Text(title).FontSize(14).SemiBold();
-                    col.Item().Text(subtitle).FontColor(Colors.Grey.Darken2);
-
-                    if (eventImage != null)
+                    // メインカード
+                    col.Item().PaddingTop(12).Element(card =>
                     {
-                        col.Item().PaddingTop(8)
-                            .Height(160)
-                            .Image(eventImage)
-                            .FitArea();
-                    }
-
-                    col.Item().PaddingTop(14).Row(row =>
-                    {
-                        row.RelativeItem().Column(left =>
-                        {
-                            left.Item().Text("用途：ゴール用QR").FontSize(16).SemiBold();
-                            left.Item().PaddingTop(6).Text("来場者がゴール時に読み取ります。");
-
-                            left.Item().PaddingTop(10)
-                                .Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}");
-                        });
-
-                        row.ConstantItem(180).AlignMiddle().AlignCenter()
-                            .Border(1).Padding(8)
-                            .Column(q =>
+                        card.Border(1).BorderColor(Colors.Grey.Lighten2)
+                            .Background(Colors.White)
+                            .Padding(16)
+                            .Column(body =>
                             {
-                                q.Item().Image(qrPng).FitArea();
-                                q.Item().PaddingTop(6).Text("読み取りはこちら").FontSize(10).AlignCenter();
+                                // 右上バッジで用途を明確化（角丸は使わない版）
+                                body.Item().Row(r =>
+                                {
+                                    r.RelativeItem();
+                                    r.ConstantItem(160).AlignRight().Element(b =>
+                                        Badge(b, "主催者用 / ゴールQR", PdfBrandColors.BadgeGoal));
+                                });
+
+                                // （任意）イベント画像：ゴール用は小さめでもOK
+                                if (eventImage != null)
+                                {
+                                    body.Item().PaddingTop(6)
+                                        .Height(120)
+                                        .Image(eventImage)
+                                        .FitArea();
+                                }
+
+                                body.Item().PaddingTop(10)
+                                    .Text("ゴール時に、参加者のスマホでこのQRを読み取ってください。")
+                                    .FontSize(13)
+                                    .SemiBold();
+
+                                body.Item().PaddingTop(10)
+                                    .Text($"有効期限：{validFrom:yyyy/MM/dd HH:mm} ～ {validTo:yyyy/MM/dd HH:mm}")
+                                    .FontColor(Colors.Grey.Darken2);
+
+                                // QR（大きめ・中央）
+                                var qrSize = (eventImage != null) ? 240 : 320;
+
+                                body.Item().PaddingTop(16).AlignCenter().Column(qr =>
+                                {
+                                    qr.Item()
+                                    .Border(2).BorderColor(Colors.Orange.Medium)
+                                    .Padding(14)
+                                    .Width(qrSize).Height(qrSize)
+                                    .AlignCenter()
+                                    .Image(qrPng).FitArea();
+
+                                    qr.Item().PaddingTop(8)
+                                    .Text("読み取りはこちら")
+                                    .FontSize(11)
+                                    .FontColor(Colors.Grey.Darken1)
+                                    .AlignCenter();
+                                });
+
+                                // 注意（掲示用と同じトーン）
+                                body.Item().PaddingTop(14).Element(n =>
+                                {
+                                    n.Border(1).BorderColor(Colors.Grey.Lighten2)
+                                    .Background(Colors.Grey.Lighten5)
+                                    .Padding(10)
+                                    .Column(list =>
+                                    {
+                                        list.Item().Text("注意").SemiBold();
+                                        list.Item().Text("・このQRは主催者が管理してください（掲示しないでください）。");
+                                        list.Item().Text("・通信が必要です。");
+                                    });
+                                });
+
+                                // URLはクリックできるように（デジタル利用も想定）
+                                body.Item().PaddingTop(10)
+                                    .Hyperlink(url)
+                                    .Text(url)
+                                    .FontFamily("DejaVu Sans Mono")
+                                    .FontSize(9)
+                                    .FontColor(Colors.Blue.Medium);
                             });
                     });
 
-                    col.Item().PaddingTop(16).Text("注意：").SemiBold();
-                    col.Item().Text("・通信が必要です。");
-                    col.Item().Text("・スタンプは全て同じ端末（同じブラウザ）で集めてください。");
+                    col.Item().PaddingTop(10).AlignCenter()
+                        .Text("発行：Qみっけ（q-mikke.com）")
+                        .FontSize(9)
+                        .FontColor(Colors.Grey.Darken1);
                 });
             });
+
 
             // =========================
             // Page 2: Organizer guide
@@ -677,7 +923,7 @@ public class CreateNewModel : PageModel
                 page.Margin(30);
                 page.DefaultTextStyle(x => x.FontSize(12));
 
-                page.Content().Column(col =>
+                page.Content().DefaultTextStyle(x => x.FontFamily("Noto Sans JP")).Column(col =>
                 {
                     col.Item().Text("ゴール運用手順（主催者向け）").FontSize(20).SemiBold();
 
@@ -739,6 +985,7 @@ public class CreateNewModel : PageModel
                     // col.Item().Text(url).FontSize(10).FontColor(Colors.Grey.Darken2);
                     col.Item().Hyperlink(url)
                         .Text(url)
+                        .FontFamily("DejaVu Sans Mono")
                         .FontSize(10)
                         .FontColor(Colors.Blue.Medium);
                 });
@@ -929,4 +1176,12 @@ public class CreateNewModel : PageModel
         public string SpotName { get; set; } = "";
         public bool IsRequired { get; set; }
     }
+
+    private static class PdfBrandColors
+    {
+        public const string BadgePrimary = "#2563EB";   // 必須
+        public const string BadgeSecondary = "#FB923C"; // 任意
+        public const string BadgeGoal = "0f0f0f";
+    }
 }
+

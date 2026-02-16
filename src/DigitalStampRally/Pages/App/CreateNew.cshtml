@@ -203,9 +203,9 @@
             <input type="hidden" name="Input.AgreeToTerms" value="false" />
 
             <label class="form-check-label form-check-label-font">
-                <a href="/Terms" target="_blank" rel="noopener">利用規約</a>
+                <a asp-page="/Terms" target="_blank" rel="noopener">利用規約</a>
                 および
-                <a href="/Privacy" target="_blank" rel="noopener">プライバシーポリシー</a>
+                <a asp-page="/Privacy" target="_blank" rel="noopener">プライバシーポリシー</a>
                 に同意します(チェック必須)
             </label>
         </div>
@@ -214,7 +214,7 @@
             <button class="btn btn-primary" type="submit" id="btnSubmit" disabled>
                 作成する
             </button>
-            <a class="btn btn-outline-secondary" href="/App/Index">ホームへ</a>
+            <a class="btn btn-outline-secondary" asp-page="/App/Index">ホームへ</a>
         </div>
 
         <input type="hidden" asp-for="Input.LoadToken" />
