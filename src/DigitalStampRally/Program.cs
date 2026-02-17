@@ -98,11 +98,15 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-builder.Services
-    .AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-    .SetApplicationName(DigitalStampRally.Models.AppConst.AppNameEn); // 重要：アプリ名固定
+var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    builder.Services
+        .AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+        .SetApplicationName(DigitalStampRally.Models.AppConst.AppNameEn); // 重要：アプリ名固定
+}
 
 QuestPDF.Settings.License = LicenseType.Community;
 // ここは実行環境で確実に読めるパスにする
@@ -112,24 +116,35 @@ FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "f
 FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "DejaVuSansMono.ttf")));
 FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "DejaVuSansMono-Bold.ttf")));
 
-var app = builder.Build();
 
 //
 // --------------------
 // Middleware
 // --------------------
 //
+// app.UseForwardedHeaders(new ForwardedHeadersOptions
+// {
+//     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+// });
+var fwdOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                     | ForwardedHeaders.XForwardedProto
+                     | ForwardedHeaders.XForwardedHost
+};
+
+// まずは一旦クリア（※信頼できる構成が分かってから絞る）
+fwdOptions.KnownNetworks.Clear();
+fwdOptions.KnownProxies.Clear();
+
+app.UseForwardedHeaders(fwdOptions);
+
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
-
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
-});
 
 
 // HTTPS（本番では推奨）

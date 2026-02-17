@@ -123,7 +123,7 @@
                 <div class="d-flex flex-wrap gap-3 mt-4">
                     <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-check-circle-fill text-success"></i>
-                        <span class="small">参加者はインストール不要</span>
+                        <span class="small">インストール不要</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-check-circle-fill text-success"></i>
@@ -144,16 +144,16 @@
                 <div class="lp-card bg-white p-3 lp-shadow-soft">
                     <div class="ratio ratio-16x9 rounded-3 overflow-hidden bg-light">
                         <!-- TODO: スクショ画像に差し替え（wwwroot/images/lp/hero.png など） -->
-                        <img src="~/img/lp/hero-placeholder.png" alt="作成画面イメージ" class="w-100 h-100" style="object-fit:cover;">
+                        <img src="~/img/lp/hero-placeholder.png" alt="作成画面イメージ" class="w-100 h-100" style="object-fit:cover; border:1px solid #9090c0;">
                     </div>
-                    <div class="mt-3">
+                    @* <div class="mt-3">
                         <div class="d-flex align-items-center justify-content-between">
                             <span class="small text-secondary">例：掲示用QR／参加者画面</span>
                         </div>
                         <div class="mt-2 small lp-muted">
                             ここに「作成画面」「掲示PDF」「読み取り画面」のスクショを置くと、信頼が一気に上がります。
                         </div>
-                    </div>
+                    </div> *@
                 </div>
 
                 @* <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 lp-pill mb-3">
@@ -375,15 +375,15 @@
                         <div class="lp-card p-3 bg-white lp-shadow-soft">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <strong>掲示用QRコード（PDF）例</strong>
-                                <span class="badge text-bg-light border">差し替え</span>
+                                @* <span class="badge text-bg-light border">差し替え</span> *@
                             </div>
-                            <div class="ratio ratio-4x3 rounded-3 overflow-hidden bg-light">
+                            <div class="ratio ratio-4x3 rounded-3 overflow-hidden bg-light" style="border:1px solid #9090c0;">
                                 <!-- TODO: PDFサンプル画像に差し替え -->
                                 <img src="~/img/lp/pdf-sample-placeholder.png" alt="掲示用PDFサンプル" class="w-100 h-100" style="object-fit:cover;">
                             </div>
-                            <p class="small lp-muted mt-2 mb-0">
+                            @* <p class="small lp-muted mt-2 mb-0">
                                 ※ここに「掲示物がどんな見た目か」が分かる画像を置くと安心感が上がります。
-                            </p>
+                            </p> *@
                         </div>
                     </div>
                     <div class="col-12">

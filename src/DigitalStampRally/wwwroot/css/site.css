@@ -155,3 +155,52 @@ body{
 #stamp-toast.is-show {
     animation: popIn 0.25s ease-out;
 }
+
+
+/*----- 掲示場所入力 -----*/
+/* 基本 */
+.spot-table {
+  width: 100%;
+  table-layout: auto;      /* ← fixedをやめる。これが重要 */
+}
+
+/* 左右列：折り返さない + 最低幅を保証して「消える」を防ぐ */
+.spot-table th.side-column,
+.spot-table td.side-column {
+  white-space: nowrap;
+  width: 1%;               /* 中身に寄せる */
+  min-width: 4.2rem;       /* ← ここが保険。左右が消えない */
+  overflow: visible;       /* 隠さない */
+  padding: 8px;
+}
+
+/* 中央列：残り全部 */
+.spot-table th.center-column,
+.spot-table td.center-column {
+  width: 99%;              /* 実質残り全部 */
+  padding: 8px;
+}
+
+/* 入力欄を中央列いっぱいに */
+.spot-table td.center-column input.form-control {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 余白（間隔）はPC/スマホで変更できる */
+@media (max-width: 576px) {
+  .spot-table th.side-column,
+  .spot-table td.side-column {
+    min-width: 3.4rem;     /* スマホは少し詰める */
+    padding: 6px;
+  }
+  .spot-table th.center-column,
+  .spot-table td.center-column {
+    padding: 6px;
+  }
+
+  /* スマホでさらに入力を広げたいなら（任意） */
+  .spot-table td.side-column .form-check-label {
+    display: none;
+  }
+}

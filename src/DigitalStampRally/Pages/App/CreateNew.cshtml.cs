@@ -21,6 +21,9 @@ public class CreateNewModel : PageModel
     private readonly IConfiguration _config;
     private readonly ILogger<CreateNewModel> _logger;
 
+    private const int QR_SIZE_LARGE = 300;
+    private const int QR_SIZE_SMALL = 200;
+
     public CreateNewModel(
         IProjectDraftStore draftStore,
         DbEventService eventService,
@@ -549,7 +552,7 @@ private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
     SponsorAdDto? sponsor = null; // project.SponsorAd;
 
     var hasImage = eventImage != null;
-    var qrSize = hasImage ? 240 : 400; // ★ここ調整ポイント
+    var qrSize = hasImage ? QR_SIZE_SMALL : QR_SIZE_LARGE; // ★ここ調整ポイント
 
     return Document.Create(container =>
     {
@@ -864,7 +867,7 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
                                     .FontColor(Colors.Grey.Darken2);
 
                                 // QR（大きめ・中央）
-                                var qrSize = (eventImage != null) ? 240 : 320;
+                                var qrSize = (eventImage != null) ? QR_SIZE_SMALL : QR_SIZE_LARGE;
 
                                 body.Item().PaddingTop(16).AlignCenter().Column(qr =>
                                 {

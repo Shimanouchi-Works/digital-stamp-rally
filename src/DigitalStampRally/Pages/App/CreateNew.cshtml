@@ -132,7 +132,7 @@
                     </ul>
                 </div>
 
-                <div class="table-responsive">
+                @* <div class="table-responsive">
                     <table class="table table-sm align-middle" id="spotTable">
                         <thead>
                             <tr>
@@ -179,7 +179,65 @@
                         }
                         </tbody>
                     </table>
+                </div> *@
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle spot-table" id="spotTable">
+                        <colgroup>
+                            <col class="col-side" />
+                            <col class="col-center" />
+                            <col class="col-side" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="side-column">
+                                    <div class="form-check d-flex align-items-center gap-1">
+                                        <input class="form-check-input" type="checkbox" id="chkRequiredAll" />
+                                        <label class="form-check-label" for="chkRequiredAll">
+                                            必須
+                                        </label>
+                                    </div>
+                                </th>
+                                <th class="center-column">
+                                    掲示場所名(入力必須)
+                                </th>
+                                <th class="side-column">
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="spotTbody">
+                        @for (int i = 0; i < Model.Input.Spots.Count; i++)
+                        {
+                            <tr class="spot-row">
+                                <td class="side-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="Input.Spots[@i].IsRequired"
+                                               id="Input_Spots_@i"
+                                               value="true"
+                                               @(Model.Input.Spots[i].IsRequired ? "checked" : "") />
+                                        <input type="hidden" name="Input.Spots[@i].IsRequired" value="false" />
+                                        <label class="form-check-label" for="Input_Spots_@i">必須</label>
+                                    </div>
+                                </td>
+                                <td class="center-column">
+                                    <input class="form-control"
+                                           name="Input.Spots[@i].SpotName"
+                                           value="@Model.Input.Spots[i].SpotName"
+                                           maxlength="60"
+                                           required />
+                                </td>
+                                <td  class="side-column">
+                                    <button type="button" class="btn btn-outline-danger btn-sm btnRemoveSpot">削除</button>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
                 </div>
+
+
                 <div class="d-flex justify-content-center my-2">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddSpot">
                         ＋ 掲示場所を追加
@@ -441,7 +499,27 @@
                 tr.className = 'spot-row';
 
                 tr.innerHTML = `
-                    <td>
+                                <td class="side-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               id="Input_Spots_${globalCheckBoxIndex}"
+                                               value="true"
+                                         />
+                                        <input type="hidden" value="false" />
+                                        <label class="form-check-label" for="Input_Spots_${globalCheckBoxIndex}">必須</label>
+                                    </div>
+                                </td>
+                                <td class="center-column">
+                                    <input class="form-control"
+                                           maxlength="60"
+                                           required />
+                                </td>
+                                <td  class="side-column">
+                                    <button type="button" class="btn btn-outline-danger btn-sm btnRemoveSpot">削除</button>
+                                </td>
+
+                    @* <td>
                         <div class="form-check">
                             <input class="form-check-input" id="Input_Spots_${globalCheckBoxIndex}" type="checkbox" value="true" />
                             <input type="hidden" value="false" />
@@ -453,7 +531,7 @@
                     </td>
                     <td class="text-end">
                         <button type="button" class="btn btn-outline-danger btn-sm btnRemoveSpot">削除</button>
-                    </td>
+                    </td> *@
                 `;
                 globalCheckBoxIndex++;
 

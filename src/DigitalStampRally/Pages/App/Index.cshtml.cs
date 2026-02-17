@@ -296,7 +296,7 @@ public class AppIndexModel : PageModel
         }
 
         var token = _draftStore.Save(json, imagePayload);
-        return Redirect($"/App/CreateNew?load={Uri.EscapeDataString(token)}");
+        return Redirect($"~/App/CreateNew?load={Uri.EscapeDataString(token)}");
     }
 
 
