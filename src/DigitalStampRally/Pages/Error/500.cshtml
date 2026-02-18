@@ -1,0 +1,31 @@
+@page
+@model DigitalStampRally.Pages.Error._500Model
+@{
+    ViewData["Title"] = "エラーが発生しました";
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<div class="container py-5 text-center">
+    <h1 class="display-6 fw-bold">エラーが発生しました</h1>
+    <p class="text-muted mt-3">
+        お手数ですが時間をおいて再度お試しください。
+    </p>
+
+    <a class="btn btn-primary mt-4" href="~/App/CreateNew">新しいスタンプラリーを作成</a>
+</div>
+
+@section Scripts {
+    <script>
+        (function(){
+            try {
+                if (typeof window.gtag === 'function') {
+                    window.gtag('event', 'server_error', {
+                        page_location: window.location.href,
+                        page_referrer: document.referrer || '',
+                        page_path: location.pathname + location.search
+                    });
+                }
+            } catch (e) {}
+        })();
+    </script>
+}

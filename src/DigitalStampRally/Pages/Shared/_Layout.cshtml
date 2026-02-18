@@ -29,12 +29,14 @@
 
         var noIndex = ViewData["NoIndex"] as bool? == true;
 
-        var ga4 = Config["GA4:MeasurementId"];
+        var ga4 = (Config["GA4:MeasurementId"] ?? "").Trim();
         var isDev = string.Equals(
             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
             "Development",
             StringComparison.OrdinalIgnoreCase);
         var enableGa4 = !string.IsNullOrWhiteSpace(ga4) && !isDev;
+        // Errorページ等で noindex 指定したいとき用
+        var robots = (ViewData["Robots"] as string) ?? "index, follow";
     }
 
     @if (noIndex)
@@ -89,6 +91,20 @@
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '@ga4', { anonymize_ip: true });
+
+            // 共通ユーティリティ：ページ側から window.trackEvent(...) で使える
+            window.trackEvent = function(name, params){
+                try {
+                    if (typeof gtag === 'function') gtag('event', name, params || {});
+                } catch (e) {}
+            };
+        </script>
+    }
+    else
+    {
+        <script>
+            // GA4無効時でも呼び出し側が落ちないようにダミー
+            window.trackEvent = function(){};
         </script>
     }
 </head>

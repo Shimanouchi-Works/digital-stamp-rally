@@ -138,22 +138,24 @@ fwdOptions.KnownNetworks.Clear();
 fwdOptions.KnownProxies.Clear();
 
 app.UseForwardedHeaders(fwdOptions);
+app.UsePathBase("/qr");
 
+// 404/403等 → /Error/{code} に再実行（PathBaseが効いた状態で描画される）
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler("/Error/500"); // 例外は500へ
     app.UseHsts();
 }
 
 
 // HTTPS（本番では推奨）
 app.UseHttpsRedirection();
-
-app.UsePathBase("/qr");
-app.UseRouting();
-
+// ★ 静的ファイルは Routing より前が基本（推奨）
 app.UseStaticFiles();
+
+app.UseRouting();
 
 app.UseSession();
 

@@ -1,0 +1,45 @@
+@page
+@model DigitalStampRally.Pages.Error._404Model
+@{
+    ViewData["Title"] = "ページが見つかりません";
+    // ここで検索エンジンに「これはインデックス不要」を明示
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<div class="container py-5">
+    <div class="text-center">
+        <h1 class="display-6 fw-bold">ページが見つかりません</h1>
+        <p class="text-muted mt-3">
+            URLが間違っているか、公開が終了している可能性があります。
+        </p>
+
+        <div class="mt-4 d-flex gap-2 justify-content-center flex-wrap">
+            <a class="btn btn-primary" href="~/App/CreateNew">新しいスタンプラリーを作成</a>
+        </div>
+
+        <div class="mt-4 small text-muted">
+            <div>リクエスト: <code>@Model.RequestedPath</code></div>
+            @if (!string.IsNullOrWhiteSpace(Model.Referer))
+            {
+                <div class="mt-1">参照元: <code>@Model.Referer</code></div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // GA4が有効なときだけ送信（gtagが無ければ何もしない）
+        (function(){
+            try {
+                if (typeof window.gtag === 'function') {
+                    window.gtag('event', 'error_404', {
+                        page_location: window.location.href,
+                        page_referrer: document.referrer || '',
+                        page_path: location.pathname + location.search
+                    });
+                }
+            } catch (e) {}
+        })();
+    </script>
+}

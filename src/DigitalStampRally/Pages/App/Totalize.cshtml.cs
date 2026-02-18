@@ -117,7 +117,6 @@ public class TotalizeModel : PageModel
             ValidFrom = ev.StartsAt;
             ValidTo = ev.EndsAt;
 
-
             // パスワード検証（hash）
             if (string.IsNullOrWhiteSpace(password) || !await _eventService.ValidateTotalizePasswordAsync(EventId, password))
             {
