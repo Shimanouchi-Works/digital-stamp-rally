@@ -98,15 +98,15 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
+if (!builder.Environment.IsDevelopment())
 {
     builder.Services
         .AddDataProtection()
         .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-        .SetApplicationName(DigitalStampRally.Models.AppConst.AppNameEn); // 重要：アプリ名固定
+        .SetApplicationName(DigitalStampRally.Models.AppConst.AppNameEn);
 }
+var app = builder.Build();
+
 
 QuestPDF.Settings.License = LicenseType.Community;
 // ここは実行環境で確実に読めるパスにする
