@@ -252,7 +252,7 @@ public class CreateNewModel : PageModel
             var zipBytes = BuildZipPackage(project);
 
             var safeTitle = SanitizeFileName(Input.EventTitle);
-            var fileName = $"StampRally_{safeTitle}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            var fileName = $"{AppConst.AppNameEn}_{safeTitle}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
 
             if (!string.IsNullOrWhiteSpace(Input.LoadToken))
             {

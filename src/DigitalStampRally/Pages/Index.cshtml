@@ -548,12 +548,13 @@
 <!-- =========================
     FINAL CTA
 ========================= -->
+<form method="get">
 <section class="lp-section bg-light" id="start">
     <div class="container">
         <div class="lp-card p-4 p-md-5 bg-white lp-shadow-soft">
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
-                    <h2 class="h3 fw-bold mb-2">まずは1回、作ってみるのが一番早いです</h2>
+                    <h2 class="h3 fw-bold mb-2">まずは、お試しで1回作ってみてください</h2>
                     <p class="lp-muted mb-0">
                         登録不要・無料で、すぐに掲示用QR（PDF）まで作れます。<br class="d-none d-md-inline" />
                         小規模イベントの“準備の手間”を軽くしませんか？
@@ -571,7 +572,17 @@
             </div>
         </div>
     </div>
+    <div class="text-center mt-4">
+        <p class="small text-secondary mb-2">
+            すぐに実物を確認したい方はこちら(QR読み取りもできます)
+        </p>
+        <a class="btn btn-outline-primary"
+            asp-page-handler="DownloadSample">
+            サンプルをダウンロード（ZIP）
+        </a>
+    </div>
 </section>
+</form>
 
 <!-- =========================
     FOOTER
