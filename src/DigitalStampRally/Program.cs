@@ -117,6 +117,37 @@ FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "f
 FontManager.RegisterFont(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fonts", "DejaVuSansMono-Bold.ttf")));
 
 
+app.MapGet("/sitemap.xml", async context =>
+{
+    context.Response.ContentType = "application/xml; charset=utf-8";
+
+    var baseUrl = "https://q-mikke.com/qr";
+
+    var urls = new List<string>
+    {
+        $"{baseUrl}/",
+        $"{baseUrl}/Contact/",
+        $"{baseUrl}/Privacy",
+        $"{baseUrl}/Terms"
+    };
+
+    await context.Response.WriteAsync(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
+    await context.Response.WriteAsync(@"<urlset xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">");
+
+    foreach (var url in urls)
+    {
+        await context.Response.WriteAsync($@"
+  <url>
+    <loc>{url}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>");
+    }
+
+    await context.Response.WriteAsync("</urlset>");
+});
+
+
 //
 // --------------------
 // Middleware

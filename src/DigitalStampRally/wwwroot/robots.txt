@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://q-mikke.com/qr/sitemap.xml
