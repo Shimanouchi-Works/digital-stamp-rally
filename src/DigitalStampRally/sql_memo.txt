@@ -1,0 +1,103 @@
+CREATE TABLE event_spot_quizzes (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    event_id BIGINT NOT NULL,
+    spot_id BIGINT NOT NULL,
+
+    quiz_type VARCHAR(20) NOT NULL COMMENT 'choice or text',
+    question_text TEXT NOT NULL,
+    correct_answer VARCHAR(255) NOT NULL,
+    explanation_text TEXT NULL,
+
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uq_event_spot_quizzes_spot (spot_id),
+
+    KEY idx_event_spot_quizzes_event_id (event_id),
+
+    CONSTRAINT fk_event_spot_quizzes_event
+        FOREIGN KEY (event_id)
+        REFERENCES events(id),
+
+    CONSTRAINT fk_event_spot_quizzes_spot
+        FOREIGN KEY (spot_id)
+        REFERENCES event_spots(id)
+);
+
+CREATE TABLE event_spot_quiz_choices (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    event_spot_quiz_id BIGINT NOT NULL,
+
+    choice_no INT NOT NULL,
+    choice_text VARCHAR(255) NOT NULL,
+    is_correct TINYINT(1) NOT NULL DEFAULT 0,
+
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uq_event_spot_quiz_choices_quiz_no
+        (event_spot_quiz_id, choice_no),
+
+    KEY idx_event_spot_quiz_choices_quiz_id
+        (event_spot_quiz_id),
+
+    CONSTRAINT fk_event_spot_quiz_choices_quiz
+        FOREIGN KEY (event_spot_quiz_id)
+        REFERENCES event_spot_quizzes(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE event_spot_next_hints (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    event_id BIGINT NOT NULL,
+    spot_id BIGINT NOT NULL,
+
+    hint_text TEXT NOT NULL,
+
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uq_event_spot_next_hints_spot (spot_id),
+
+    KEY idx_event_spot_next_hints_event_id (event_id),
+
+    CONSTRAINT fk_event_spot_next_hints_event
+        FOREIGN KEY (event_id)
+        REFERENCES events(id),
+
+    CONSTRAINT fk_event_spot_next_hints_spot
+        FOREIGN KEY (spot_id)
+        REFERENCES event_spots(id)
+);
+
+CREATE TABLE event_spot_hidden_settings (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    event_id BIGINT NOT NULL,
+    spot_id BIGINT NOT NULL,
+
+    hidden_label VARCHAR(100) NULL COMMENT '未発見時の表示名',
+    hint_text TEXT NULL COMMENT '隠しスポットのヒント',
+
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uq_event_spot_hidden_settings_spot (spot_id),
+
+    KEY idx_event_spot_hidden_settings_event_id (event_id),
+
+    CONSTRAINT fk_event_spot_hidden_settings_event
+        FOREIGN KEY (event_id)
+        REFERENCES events(id),
+
+    CONSTRAINT fk_event_spot_hidden_settings_spot
+        FOREIGN KEY (spot_id)
+        REFERENCES event_spots(id)
+);
