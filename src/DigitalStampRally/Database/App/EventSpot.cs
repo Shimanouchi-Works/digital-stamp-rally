@@ -29,12 +29,6 @@ public partial class EventSpot
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual EventSpotHiddenSetting? EventSpotHiddenSetting { get; set; }
-
-    public virtual EventSpotNextHint? EventSpotNextHint { get; set; }
-
-    public virtual EventSpotQuiz? EventSpotQuiz { get; set; }
-
     public virtual Event Events { get; set; } = null!;
 
     public virtual ICollection<StampScanLog> StampScanLogs { get; set; } = new List<StampScanLog>();
