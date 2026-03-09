@@ -32,6 +32,12 @@ public partial class Event
 
     public virtual ICollection<EventReward> EventRewards { get; set; } = new List<EventReward>();
 
+    public virtual ICollection<EventSpotHiddenSetting> EventSpotHiddenSettings { get; set; } = new List<EventSpotHiddenSetting>();
+
+    public virtual ICollection<EventSpotNextHint> EventSpotNextHints { get; set; } = new List<EventSpotNextHint>();
+
+    public virtual ICollection<EventSpotQuiz> EventSpotQuizzes { get; set; } = new List<EventSpotQuiz>();
+
     public virtual ICollection<EventSpot> EventSpots { get; set; } = new List<EventSpot>();
 
     public virtual ICollection<Goal> Goals { get; set; } = new List<Goal>();

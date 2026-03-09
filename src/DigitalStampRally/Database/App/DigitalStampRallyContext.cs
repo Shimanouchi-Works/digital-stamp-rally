@@ -17,6 +17,14 @@ public partial class DigitalStampRallyContext : DbContext
 
     public virtual DbSet<EventSpot> EventSpots { get; set; }
 
+    public virtual DbSet<EventSpotHiddenSetting> EventSpotHiddenSettings { get; set; }
+
+    public virtual DbSet<EventSpotNextHint> EventSpotNextHints { get; set; }
+
+    public virtual DbSet<EventSpotQuiz> EventSpotQuizzes { get; set; }
+
+    public virtual DbSet<EventSpotQuizChoice> EventSpotQuizChoices { get; set; }
+
     public virtual DbSet<Goal> Goals { get; set; }
 
     public virtual DbSet<ParticipantSession> ParticipantSessions { get; set; }
@@ -205,6 +213,176 @@ public partial class DigitalStampRallyContext : DbContext
                 .HasConstraintName("fk_event_spots_events");
         });
 
+        modelBuilder.Entity<EventSpotHiddenSetting>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("event_spot_hidden_settings");
+
+            entity.HasIndex(e => e.EventsId, "idx_event_spot_hidden_settings_events_id");
+
+            entity.HasIndex(e => new { e.SpotId, e.EventsId }, "uq_event_spot_hidden_settings_spot").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.EventsId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("events_id");
+            entity.Property(e => e.HiddenLabel)
+                .HasMaxLength(100)
+                .HasComment("未発見時の表示名")
+                .HasColumnName("hidden_label");
+            entity.Property(e => e.HintText)
+                .HasComment("隠しスポットのヒント")
+                .HasColumnType("text")
+                .HasColumnName("hint_text");
+            entity.Property(e => e.SpotId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("spot_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Events).WithMany(p => p.EventSpotHiddenSettings)
+                .HasForeignKey(d => d.EventsId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_hidden_settings_events");
+
+            entity.HasOne(d => d.EventSpot).WithOne(p => p.EventSpotHiddenSetting)
+                .HasForeignKey<EventSpotHiddenSetting>(d => new { d.SpotId, d.EventsId })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_hidden_settings_spot");
+        });
+
+        modelBuilder.Entity<EventSpotNextHint>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("event_spot_next_hints");
+
+            entity.HasIndex(e => e.EventsId, "idx_event_spot_next_hints_events_id");
+
+            entity.HasIndex(e => new { e.SpotId, e.EventsId }, "uq_event_spot_next_hints_spot").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.EventsId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("events_id");
+            entity.Property(e => e.HintText)
+                .HasColumnType("text")
+                .HasColumnName("hint_text");
+            entity.Property(e => e.SpotId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("spot_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Events).WithMany(p => p.EventSpotNextHints)
+                .HasForeignKey(d => d.EventsId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_next_hints_events");
+
+            entity.HasOne(d => d.EventSpot).WithOne(p => p.EventSpotNextHint)
+                .HasForeignKey<EventSpotNextHint>(d => new { d.SpotId, d.EventsId })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_next_hints_spot");
+        });
+
+        modelBuilder.Entity<EventSpotQuiz>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("event_spot_quizzes");
+
+            entity.HasIndex(e => e.EventsId, "idx_event_spot_quizzes_events_id");
+
+            entity.HasIndex(e => new { e.SpotId, e.EventsId }, "uq_event_spot_quizzes_spot").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.CorrectAnswer)
+                .HasMaxLength(255)
+                .HasColumnName("correct_answer");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.EventsId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("events_id");
+            entity.Property(e => e.ExplanationText)
+                .HasColumnType("text")
+                .HasColumnName("explanation_text");
+            entity.Property(e => e.QuestionText)
+                .HasColumnType("text")
+                .HasColumnName("question_text");
+            entity.Property(e => e.QuizType)
+                .HasMaxLength(20)
+                .HasComment("choice or text")
+                .HasColumnName("quiz_type");
+            entity.Property(e => e.SpotId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("spot_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Events).WithMany(p => p.EventSpotQuizzes)
+                .HasForeignKey(d => d.EventsId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_quizzes_events");
+
+            entity.HasOne(d => d.EventSpot).WithOne(p => p.EventSpotQuiz)
+                .HasForeignKey<EventSpotQuiz>(d => new { d.SpotId, d.EventsId })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_event_spot_quizzes_spot");
+        });
+
+        modelBuilder.Entity<EventSpotQuizChoice>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("event_spot_quiz_choices");
+
+            entity.HasIndex(e => e.EventSpotQuizId, "idx_event_spot_quiz_choices_quiz_id");
+
+            entity.HasIndex(e => new { e.EventSpotQuizId, e.ChoiceNo }, "uq_event_spot_quiz_choices_quiz_no").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.ChoiceNo)
+                .HasColumnType("int(11)")
+                .HasColumnName("choice_no");
+            entity.Property(e => e.ChoiceText)
+                .HasMaxLength(255)
+                .HasColumnName("choice_text");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.EventSpotQuizId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("event_spot_quiz_id");
+            entity.Property(e => e.IsCorrect).HasColumnName("is_correct");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.EventSpotQuiz).WithMany(p => p.EventSpotQuizChoices)
+                .HasForeignKey(d => d.EventSpotQuizId)
+                .HasConstraintName("fk_event_spot_quiz_choices_quiz");
+        });
+
         modelBuilder.Entity<Goal>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.EventsId, e.ParticipantSessionsId })
@@ -218,6 +396,8 @@ public partial class DigitalStampRallyContext : DbContext
             entity.HasIndex(e => e.ParticipantSessionsId, "fk_goals_participant_sessions1_idx");
 
             entity.HasIndex(e => new { e.EventsId, e.GoaledAt }, "idx_goals_event_goaled_at");
+
+            entity.HasIndex(e => new { e.ParticipantSessionsId, e.ParticipantSessionsEventsId }, "idx_goals_participant_sessions");
 
             entity.Property(e => e.Id)
                 .ValueGeneratedOnAdd()
@@ -238,6 +418,9 @@ public partial class DigitalStampRallyContext : DbContext
             entity.Property(e => e.GoaledAt)
                 .HasColumnType("datetime")
                 .HasColumnName("goaled_at");
+            entity.Property(e => e.ParticipantSessionsEventsId)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("participant_sessions_events_id");
 
             entity.HasOne(d => d.Events).WithMany(p => p.Goals)
                 .HasForeignKey(d => d.EventsId)
