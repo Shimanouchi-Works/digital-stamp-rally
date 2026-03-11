@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -395,6 +396,7 @@ public class CreateNewModel : PageModel
                 var pdf = BuildSimpleQrPdf(
                     title: "利用者ゴールQRコード",
                     subtitle: "主催者が管理するQRです。来場者がゴール時に読み取ります。",
+                    eventId: project.EventId,
                     eventTitle: project.EventTitle,
                     validFrom: project.ValidFrom,
                     validTo: project.ValidTo,
@@ -550,6 +552,7 @@ private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
     var eventImage = GetEventImageBytes(project.EventImage);
     // 将来：projectにSponsorAdを追加したらここで受ける
     SponsorAdDto? sponsor = null; // project.SponsorAd;
+    var eventIdLabel = $"イベント管理番号：{FormatPosterEventId(project.EventId)}";
 
     var hasImage = eventImage != null;
     var qrSize = hasImage ? QR_SIZE_SMALL : QR_SIZE_LARGE; // ★ここ調整ポイント
@@ -657,11 +660,23 @@ private byte[] BuildSpotsPosterPdfAllInOne(ProjectDto project)
                     });
 
                     // ===== Footer =====
-                    col.Item().PaddingTop(10).AlignCenter().Text("発行：Qみっけ（q-mikke.com）").FontSize(9).FontColor(Colors.Grey.Darken1);
+                    col.Item().PaddingTop(10).Row(row =>
+                    {
+                        row.ConstantItem(170);
+                        row.RelativeItem().AlignCenter().Text("発行：Qみっけ（q-mikke.com）").FontSize(9).FontColor(Colors.Grey.Darken1);
+                        row.ConstantItem(170).AlignRight().Text(eventIdLabel).FontSize(9).FontColor(Colors.Grey.Darken1);
+                    });
                 });
             });
         }
     }).GeneratePdf();
+}
+
+private static string FormatPosterEventId(string eventId)
+{
+    return long.TryParse(eventId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+        ? parsed.ToString("D4", CultureInfo.InvariantCulture)
+        : eventId;
 }
 
 private static void Badge(IContainer c, string text, string hexColor)
@@ -726,6 +741,7 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
     {
         var qrPng = BuildQrPng(url);
         var eventImage = GetEventImageBytes(project.EventImage);
+        var eventIdLabel = $"（イベント管理番号：{FormatPosterEventId(project.EventId)}）";
 
         return Document.Create(container =>
         {
@@ -738,7 +754,11 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
                 page.Content().Column(col =>
                 {
                     col.Item().Text("集計画面アクセス用QRコード").FontSize(22).SemiBold();
-                    col.Item().Text(project.EventTitle).FontSize(14).FontColor(Colors.Grey.Darken2);
+                    col.Item().Text(text =>
+                    {
+                        text.Span(project.EventTitle).FontSize(14).FontColor(Colors.Grey.Darken2);
+                        text.Span(eventIdLabel).FontSize(14).FontColor(Colors.Grey.Darken2);
+                    });
 
                     if (eventImage != null)
                     {
@@ -806,6 +826,7 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
     private byte[] BuildSimpleQrPdf(
         string title,
         string subtitle,
+        string eventId,
         string eventTitle,
         DateTime validFrom,
         DateTime validTo,
@@ -813,6 +834,7 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
         byte[]? eventImage)
     {
         var qrPng = BuildQrPng(url);
+        var eventIdLabel = $"イベント管理番号：{FormatPosterEventId(eventId)}";
 
         return Document.Create(container =>
         {
@@ -909,10 +931,18 @@ private static void SponsorPanel(IContainer c, SponsorAdDto sponsor)
                             });
                     });
 
-                    col.Item().PaddingTop(10).AlignCenter()
-                        .Text("発行：Qみっけ（q-mikke.com）")
-                        .FontSize(9)
-                        .FontColor(Colors.Grey.Darken1);
+                    col.Item().PaddingTop(10).Row(row =>
+                    {
+                        row.ConstantItem(170);
+                        row.RelativeItem().AlignCenter()
+                            .Text("発行：Qみっけ（q-mikke.com）")
+                            .FontSize(9)
+                            .FontColor(Colors.Grey.Darken1);
+                        row.ConstantItem(170).AlignRight()
+                            .Text(eventIdLabel)
+                            .FontSize(9)
+                            .FontColor(Colors.Grey.Darken1);
+                    });
                 });
             });
 
